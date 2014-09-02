@@ -918,7 +918,7 @@ def main():
         skeletonNumElementsSortedList[1:len(skeletonNumElementsSortedList)-1],
         np.sqrt(len(skeletonNumElementsSortedList)))
     
-    # A for loop will be here
+    # Create skeleton gridded array
     skeletonNumElementsGriddedArray = np.zeros(xySkeletonSize)
     #"""
     for i in range(0,xySkeletonSize[0]):
@@ -953,7 +953,7 @@ def main():
             # Skip this pixel if the current point is not a labeled or if the
             # number of connected skeleton elements is too small
             if skeletonLabeledArray[i,j]!=0 \
-               or skeletonNumElementsGriddedArray[i,j]>=skeletonNumElementsThreshold:
+               and skeletonNumElementsGriddedArray[i,j]>=skeletonNumElementsThreshold:
                 # Define search box and ensure it fits within the DTM bounds
                 mx = i-1
                 px = xySkeletonSize[0]-i
@@ -970,25 +970,46 @@ def main():
                 # Look in the search box for skeleton points with the same label
                 # and greater geodesic distance than the current pixel at (i,j)
                 # - if there are none, then add the current point as a channel head
-                if len(np.where((searchLabeledSkeletonBox==skeletonLabeledArray[i,j])\
-                                *(searchGeodesicDistanceBox>geodesicDistanceArray[i,j])))==0:
+                v = searchLabeledSkeletonBox==skeletonLabeledArray[i,j]
+                v1 = v * searchGeodesicDistanceBox > geodesicDistanceArray[i,j]
+                v3 = np.where(np.any(v1==True,axis=0))
+                if len(v3[0])==0:
                     skeletonEndPointsList.append([i,j])
+    
     # For loop ends here
-    print skeletonEndPointsList
+    skeletonEndPointsListArray = np.array(skeletonEndPointsList)
+    xx = skeletonEndPointsListArray[0:len(skeletonEndPointsListArray),0]
+    yy = skeletonEndPointsListArray[0:len(skeletonEndPointsListArray),1]
     
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(skeletonNumElementsGriddedArray,cmap=cm.coolwarm)
-    plt.plot(skeletonEndPointsList[1],skeletonEndPointsList[0],'or')
+    plt.imshow(skeletonFromFlowAndCurvatureArray,cmap=cm.binary)
+    plt.plot(yy,xx,'or')
     plt.title('Skeleton Num elements Array with channel heads')
     plt.colorbar()
-    plt.show()               
+    plt.show()             
             
     #"""
     
     # Do compute discrete geodesics
+    print 'Computing discrete geodesics'
+    numberOfEndPoints = len(xx)
+    for i in range(0,numberOfEndPoints):
+        xEndPoint = xx[i]
+        yEndPoint = yy[i]
+        watershedLabel = subBasinIndexArray[xEndPoint,yEndPoint]
+        watershedIndexList = subBasinIndexArray == watershedLabel
+        geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
+        geodesicDistanceArrayMask[watershedIndexList]= geodesicDistanceArray[watershedIndexList]
+        geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
+        geodesicPathsCellList{i} = compute_discrete_geodesic(geodesicDistanceArrayMask,\
+                                    skeletonEndPointsList(i,:).T,defaults.doTrueGradientDescent)
+        
 
     # Write shapefiles of channel heads and stream network
+
+
+    
 if __name__ == '__main__':
     t0 = clock()
     main()

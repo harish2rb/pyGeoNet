@@ -62,10 +62,9 @@ pl.title('Skeleton Num elements Array')
 pl.colorbar()
 pl.show()
 
-skeletonNumElementsThreshold = bin_edges[1]
+skeletonNumElementsThreshold = bin_edges[10]
 endPointSearchBoxSize = 30
 nanDemArraygeoD[np.isnan(nanDemArraygeoD)]==0
-
 skeletonEndPointsList = []
 for i in range(0,xySkeletonSize[0]):
     for j in range(0,xySkeletonSize[1]):
@@ -73,7 +72,7 @@ for i in range(0,xySkeletonSize[0]):
         # Skip this pixel if the current point is not a labeled or if the
         # number of connected skeleton elements is too small
         if skeletonLabeledArray[i,j]!=0 \
-            or skeletonNumElementsGriddedArray[i,j]>=skeletonNumElementsThreshold:
+            and skeletonNumElementsGriddedArray[i,j]>=skeletonNumElementsThreshold:
             # Define search box and ensure it fits within the DTM bounds
             mx = i-1
             px = xySkeletonSize[0]-i
@@ -84,35 +83,51 @@ for i in range(0,xySkeletonSize[0]):
             yMinus = np.min([endPointSearchBoxSize, my])
             yPlus  = np.min([endPointSearchBoxSize, py])
             # Extract the geodesic distances geodesicDistanceArray for pixels within the search box
-            searchGeodesicDistanceBox = (nanDemArraygeoD[i-xMinus:i+xPlus, j-yMinus:j+yPlus])
+            searchGeodesicDistanceBox = nanDemArraygeoD[i-xMinus:i+xPlus, j-yMinus:j+yPlus]
             #print searchGeodesicDistanceBox
             # Extract the skeleton labels for pixels within the search box
-            searchLabeledSkeletonBox = (skeletonLabeledArray[i-xMinus:i+xPlus, j-yMinus:j+yPlus])
+            searchLabeledSkeletonBox = skeletonLabeledArray[i-xMinus:i+xPlus, j-yMinus:j+yPlus]
             # Look in the search box for skeleton points with the same label
             # and greater geodesic distance than the current pixel at (i,j)
             # if there are none, then add the current point as a channel head
-            AB = np.where(searchLabeledSkeletonBox == skeletonLabeledArray[i,j])
-            ABxx = AB[0]
-            AByy = AB[1]
-            #print ABxx, AByy
-            #Vprev = np.isnan(searchGeodesicDistanceBox[ABxx,AByy])
-            #print Vprev.all(),Vprev.any()
-            V = searchGeodesicDistanceBox[ABxx,AByy]> nanDemArraygeoD[i,j]
-            #print V.all()
-            if V.all():
+            #if i > 200 and j >200:
+            #print searchGeodesicDistanceBox
+            #print searchLabeledSkeletonBox
+            #print skeletonLabeledArray[i,j]
+            v = searchLabeledSkeletonBox==skeletonLabeledArray[i,j]
+            v1 = v * searchGeodesicDistanceBox > nanDemArraygeoD[i,j]
+            #v2 = nanDemArraygeoD[i,j] > v1
+            v3 = np.where(np.any(v1==True,axis=0))
+            """
+            if i > 200 and j >200:
+                print v
+                print v1
+                print v3
+                print len(v3[0])
+                stop
+            #"""
+            #print v3
+            if len(v3[0])==0:
                 #print i,j
                 skeletonEndPointsList.append([i,j])
-                #stop
-            
+            #stop
+                       
             
 # For loop ends here
-print skeletonEndPointsList
-pl.imshow(skeletonNumElementsGriddedArray,cmap=cm.coolwarm)
-pl.plot(skeletonEndPointsList[1],skeletonEndPointsList[0],'or')
+skeletonEndPointsListArray = np.array(skeletonEndPointsList)
+print type(skeletonEndPointsListArray)
+#print skeletonEndPointsList
+#stop
+#print len(skeletonEndPointsList[0:][0:])
+xx = skeletonEndPointsListArray[0:len(skeletonEndPointsListArray),0]
+yy = skeletonEndPointsListArray[0:len(skeletonEndPointsListArray),1]
+pl.imshow(nanDemArrayskel,cmap=cm.binary)
+pl.plot(yy,xx,'or')
 pl.title('Skeleton Num elements Array with channel heads')
 pl.colorbar()
 pl.show() 
 
+"""
 stop
 skeletonNumElementsList = np.zeros((1,skeletonNumConnectedComponentsList))
 for i in range(1,skeletonNumConnectedComponentsList):
@@ -203,7 +218,7 @@ pl.imshow(np.log10(geodesciDistanceArray),cmap=cm.coolwarm)
 pl.show()
 
 #stop
-"""
+
 # plotting the basins index DEM ( only for testing purposes)
 #defaults.figureNumber = defaults.figureNumber + 1
 #plt.figure(defaults.figureNumber)
