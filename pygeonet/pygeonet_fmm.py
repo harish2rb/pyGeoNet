@@ -142,6 +142,7 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
     skeletonEndPoint = skeletonEndPoint[:]
     #print skeletonEndPoint[:]
     streamPathPixelList = skeletonEndPoint[:]
+    print 'skeletonEndPoint',skeletonEndPoint
     # Creating the 8 cell neighbor moves
     tempArrayDxMoves = [1, -1, 0, 0, 1, -1, 1, -1]
     tempArrayDyMoves = [0, 0, 1, -1, 1, -1, -1, 1]
@@ -224,9 +225,9 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         #print diagonalSkeletonEndPointAllowed[1,2]
         #print neighborPixelSkeletonEndPointListAllowed
 
-        allGeodesicDistanceList = []
-        cardinalPixelGeodesicDistanceList = []
-        diagonalPixelGeodesicDistanceList = []
+        #allGeodesicDistanceList = []
+        #cardinalPixelGeodesicDistanceList = []
+        #diagonalPixelGeodesicDistanceList = []
         
         # Get the minimum value of geodesic distance in the 8 cell neighbor
         # Get the values of D(I) and adjust values for diagonal elements
@@ -272,32 +273,36 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         #print 'b',b        
         streamPathPixelList = np.hstack((streamPathPixelList,b))
         #print 'streamPathPixelList',streamPathPixelList
-        return streamPathPixelList
+    return streamPathPixelList
         
 
 #-------------------------------------------------    
 geodesicPathsCellList = []
 numberOfEndPoints = len(xx)
 for i in range(0,numberOfEndPoints):
-    print 'EndPoint# ',i
+    #print 'EndPoint# ',i
     xEndPoint = xx[i]
     yEndPoint = yy[i]
     watershedLabel = nanDemArraybasins[xEndPoint,yEndPoint]
-    watershedIndexList = nanDemArraybasins == watershedLabel
-    geodesicDistanceArrayMask = np.zeros((nanDemArraygeoD.shape))
-    geodesicDistanceArrayMask[watershedIndexList]= nanDemArraygeoD[watershedIndexList]
-    geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
-    """
-    pl.imshow(geodesicDistanceArrayMask,cmap=cm.coolwarm)
-    pl.plot(yy,xx,'or')
-    pl.title('Skeleton Num elements Array with channel heads')
-    pl.colorbar()
-    pl.show()
-    #"""
-    doTrueGradientDescent = 1
-    skeletonEndPoint = np.array([[xEndPoint],[yEndPoint]])
-    geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
+    if watershedLabel==4:
+        watershedIndexList = nanDemArraybasins == watershedLabel
+        geodesicDistanceArrayMask = np.zeros((nanDemArraygeoD.shape))
+        geodesicDistanceArrayMask[watershedIndexList]= nanDemArraygeoD[watershedIndexList]
+        geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
+        """
+        pl.imshow(geodesicDistanceArrayMask,cmap=cm.coolwarm)
+        pl.plot(yy,xx,'or')
+        pl.title('Skeleton Num elements Array with channel heads')
+        pl.colorbar()
+        pl.show()
+        #"""
+        doTrueGradientDescent = 1
+        skeletonEndPoint = np.array([[xEndPoint],[yEndPoint]])    
+        print 'watershedLabel',watershedLabel
+        print 'EndPoint# ',i
+        geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
                                skeletonEndPoint,doTrueGradientDescent))
+    
     """
     print 'geodesicPathsCellList',geodesicPathsCellList
     pl.imshow(geodesicDistanceArrayMask,cmap=cm.coolwarm)
