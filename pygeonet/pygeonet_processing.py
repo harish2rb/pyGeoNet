@@ -39,7 +39,6 @@ def read_dem_from_geotiff(demFileName,demFilePath):
     gdal.UseExceptions()
     ds = gdal.Open(fullFilePath, gdal.GA_ReadOnly)
     Parameters.driver = ds.GetDriver()
-    print ds
     geotransform = ds.GetGeoTransform()
     Parameters.geotransform = geotransform
     #'''
@@ -48,7 +47,8 @@ def read_dem_from_geotiff(demFileName,demFilePath):
     print 'Size is ',ds.RasterXSize,'x',ds.RasterYSize, \
           'x',ds.RasterCount
     print 'Projection is ',ds.GetProjection()
-
+    print 'geotransform', geotransform,type(geotransform[0])
+    
     if not geotransform is None:
         print 'Origin = (',geotransform[0], ',',geotransform[3],')'
         print 'Pixel Size = (',geotransform[1], ',',geotransform[5],')'
@@ -57,10 +57,11 @@ def read_dem_from_geotiff(demFileName,demFilePath):
     #Parameters.geospatialReferenceArray
     #Parameters.geoReferencingMatrix
     #Parameters.geoBoundingBox
-    Parameters.demPixelScale = geotransform[1]
-    Parameters.xLowerLeftCoord = geotransform[0]
-    Parameters.yLowerLeftCoord = geotransform[3]
+    Parameters.demPixelScale = float(geotransform[1])
+    Parameters.xLowerLeftCoord = float(geotransform[0])
+    Parameters.yLowerLeftCoord = float(geotransform[3])
     Parameters.inputwktInfo = ds.GetProjection()
+    
     return ary
 
 def quantileasmatlab(a, prob):
@@ -440,6 +441,7 @@ def flowaccumulation(filteredDemArray):
     print 'geotiffmapraster: ',geotiffmapraster
     print g.run_command('r.in.gdal', input=geotiff, \
                         output=geotiffmapraster,overwrite=True)
+    
     """
     # May be not required!
     # Set up grass region
@@ -539,31 +541,47 @@ def flowaccumulation(filteredDemArray):
     plt.show()
 
     # outlets locations in projection of the input dataset
+    print outlets
     outletsxx = outlets[0]
+    outletsxxfloat = [float(x)+0.5 for x in outletsxx]
     outletsyy = outlets[1]
-
-    outletsxxProj = outletsxx * Parameters.demPixelScale + \
+    outletsyyfloat = [float(x)+0.5 for x in outletsyy]
+    
+    gtf = Parameters.geotransform
+    print float(gtf[0])
+    """
+    outletsxxProj = np.array(outletsxxfloat) * Parameters.demPixelScale + \
                     Parameters.xLowerLeftCoord
-    outletsyyProj = Parameters.yLowerLeftCoord - outletsyy * \
+    outletsyyProj = Parameters.yLowerLeftCoord - np.array(outletsyyfloat) * \
                     Parameters.demPixelScale + \
                     Parameters.yDemSize * Parameters.demPixelScale
+    """
+    outletsxxProj = float(gtf[0])+ float(gtf[1]) * np.array(outletsxx)
+    outletsyyProj = float(gtf[3])+ float(gtf[5])*np.array(outletsyyfloat)
     
-    #print outletsxxProj,outletsyyProj
-
+    print outletsxxProj,outletsyyProj
+    
     # Call the watershed outlet grass gis function to find the
     # basin Index that will be used for FM marching
     """
-    print g.run_command('r.water.outlet',overwrite=True,\
-                    input = 'dra1v23', output= 'oneoutletbasin',\
-                    coordinates=[444743.102185,4397344.18322])
-    
-    outputoneBAS_filename = geotiffmapraster + '_onebasins.tif'
-    print g.run_command('r.out.gdal',overwrite=True,\
-                        input = "oneoutletbasin", type='Float32',\
+    for op in range(0,len(outletsxxProj)):
+        east = float(outletsxxProj[op])
+        north = float(outletsyyProj[op])
+        print 'east :',east,'north :',north
+        print g.run_command('r.water.outlet',overwrite=True,\
+                    input = 'dra1v23', output = 'oneoutletbasin'+str(op+ 1),\
+                    coordinates=[east,north])
+        
+        # done making big basins
+        outputoneBAS_filename = geotiffmapraster + '_onebasins_'+str(op+ 1)+'.tif'
+        print g.run_command('r.out.gdal',overwrite=True,\
+                        input = "oneoutletbasin"+str(op+ 1), type='Float32',\
                         output='C:\\Mystuff\\grassgisdatabase\\'+\
                         outputoneBAS_filename,\
                         nodata=-9999,format='GTiff')
-    """
+
+    print g.read_command('g.list', _type='rast')
+    #"""
     # return back the dictionary of flow routing
     return {'outlets':outlets, 'fac':nanDemArrayfac ,\
             'fdr':nanDemArrayfdr ,'basins':nanDemArraybasins,\
@@ -743,7 +761,10 @@ def main():
     gets back return {'outlets':outlets, 'fac':nanDemArrayfac ,\
             'fdr':nanDemArrayfdr ,'basins':nanDemArraybasins}
     """
+    # Call the flow accumulation function
     flowroutingresults = flowaccumulation(filteredDemArray)
+
+    # Read out the flowroutingresults into appropriate variables
     outletPointsList = flowroutingresults['outlets']
     flowArray = flowroutingresults['fac']
     flowDirectionsArray = flowroutingresults['fdr']
@@ -791,6 +812,7 @@ def main():
     outfilename = outfilename.split('.')[0]+'_skeleton.tif'
     write_geotif_generic(skeletonFromFlowAndCurvatureArray,outfilepath,outfilename)
 
+    
     # Computing the percentage drainage areas
     print 'Computing percentage drainage area of each indexed basin'
     # I will add this part later..
@@ -989,8 +1011,7 @@ def main():
     plt.colorbar()
     plt.show()             
             
-    #"""
-    
+    """
     # Do compute discrete geodesics
     print 'Computing discrete geodesics'
     numberOfEndPoints = len(xx)
@@ -1004,7 +1025,7 @@ def main():
         geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
         geodesicPathsCellList{i} = compute_discrete_geodesic(geodesicDistanceArrayMask,\
                                     skeletonEndPointsList(i,:).T,defaults.doTrueGradientDescent)
-        
+     """   
 
     # Write shapefiles of channel heads and stream network
 

@@ -284,7 +284,7 @@ for i in range(0,numberOfEndPoints):
     xEndPoint = xx[i]
     yEndPoint = yy[i]
     watershedLabel = nanDemArraybasins[xEndPoint,yEndPoint]
-    if watershedLabel==4:
+    if watershedLabel==8:
         watershedIndexList = nanDemArraybasins == watershedLabel
         geodesicDistanceArrayMask = np.zeros((nanDemArraygeoD.shape))
         geodesicDistanceArrayMask[watershedIndexList]= nanDemArraygeoD[watershedIndexList]
@@ -312,8 +312,14 @@ for i in range(0,numberOfEndPoints):
     pl.show()
     """
 print 'geodesicPathsCellList',geodesicPathsCellList
-    
-    #"""
+pl.imshow(geodesicDistanceArrayMask,cmap=cm.coolwarm)
+for pp in range(0,len(geodesicPathsCellList)):
+    pl.plot(geodesicPathsCellList[pp][1,:],geodesicPathsCellList[pp][0,:],'-r')
+pl.plot(yy,xx,'og')
+pl.title('Skeleton Num elements Array with channel heads and streams')
+pl.colorbar()
+pl.show()
+#"""
 
 
 
