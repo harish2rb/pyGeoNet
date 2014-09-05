@@ -556,14 +556,17 @@ def flowaccumulation(filteredDemArray):
                     Parameters.demPixelScale + \
                     Parameters.yDemSize * Parameters.demPixelScale
     """
-    outletsxxProj = float(gtf[0])+ float(gtf[1]) * np.array(outletsxx)
-    outletsyyProj = float(gtf[3])+ float(gtf[5])*np.array(outletsyyfloat)
+    # The extra decimal digits is essentially a hack into
+    # Grass GIS r.water.outlet routine, which only, works
+    # with atleast 4 significant digits
+    outletsxxProj = float(gtf[0])+ float(gtf[1]) * np.array(outletsxx) + float(0.00964)
+    outletsyyProj = float(gtf[3])+ float(gtf[5])*np.array(outletsyyfloat) + float(0.00155)
     
     print outletsxxProj,outletsyyProj
     
     # Call the watershed outlet grass gis function to find the
     # basin Index that will be used for FM marching
-    """
+    #"""
     for op in range(0,len(outletsxxProj)):
         east = float(outletsxxProj[op])
         north = float(outletsyyProj[op])
@@ -580,7 +583,7 @@ def flowaccumulation(filteredDemArray):
                         outputoneBAS_filename,\
                         nodata=-9999,format='GTiff')
 
-    print g.read_command('g.list', _type='rast')
+    #print g.read_command('g.list', _type='rast')
     #"""
     # return back the dictionary of flow routing
     return {'outlets':outlets, 'fac':nanDemArrayfac ,\

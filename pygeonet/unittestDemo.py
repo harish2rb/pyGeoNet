@@ -3,7 +3,8 @@ import numpy as np
 import numpy.ma as npma
 from osgeo import gdal,osr,ogr
 
-skeltif = 'C:\\Mystuff\\grassgisdatabase\\'+'skunkroi_skeleton.tif'
+skeltif = 'C:\\Users\\Harish\\Documents\\GitHub\\pyGeoNet\\data\\'+\
+          'skunkroi.tif'
 dsskel = gdal.Open(skeltif, gdal.GA_ReadOnly)
 aryskel = dsskel.GetRasterBand(1).ReadAsArray()
 nanDemArrayskel=np.array(aryskel.T)
@@ -13,6 +14,27 @@ gtf =  dsskel.GetGeoTransform()
 gtif = gdal.Open( skeltif )
 
 geotransform = dsskel.GetGeoTransform()
+
+a = np.array([[ 12 , 10 , 11,11],
+ [944, 944 ,945, 943]])
+
+(upper_left_x, x_size, x_rotation,\
+ upper_left_y, y_rotation, y_size) = dsskel.GetGeoTransform()
+
+print (upper_left_x, x_size, x_rotation,\
+ upper_left_y, y_rotation, y_size)
+
+x_index = np.array(a[0,:])
+print x_index
+y_index = np.array(a[1,:])
+
+x_coords = x_index * x_size + upper_left_x + (x_size / 2) +0.01964
+y_coords = y_index * y_size + upper_left_y + (y_size / 2) +0.02155
+
+print "Coords: " + str(x_coords) + ", " + str(y_coords)
+
+
+stop
 originX = geotransform[0]
 originY = geotransform[3]
 
