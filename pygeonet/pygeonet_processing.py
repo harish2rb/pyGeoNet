@@ -559,14 +559,19 @@ def flowaccumulation(filteredDemArray):
     # The extra decimal digits is essentially a hack into
     # Grass GIS r.water.outlet routine, which only, works
     # with atleast 4 significant digits
-    outletsxxProj = float(gtf[0])+ float(gtf[1]) * np.array(outletsxx) + float(0.00964)
-    outletsyyProj = float(gtf[3])+ float(gtf[5])*np.array(outletsyyfloat) + float(0.00155)
+    outletsxxProj = float(gtf[0])+ \
+                    float(gtf[1]) * np.array(outletsxx) + \
+                    float(0.00964)
+    outletsyyProj = float(gtf[3])+ \
+                    float(gtf[5])*np.array(outletsyyfloat) + \
+                    float(0.00155)
     
-    print outletsxxProj,outletsyyProj
+    #print outletsxxProj,outletsyyProj
     
     # Call the watershed outlet grass gis function to find the
     # basin Index that will be used for FM marching
     #"""
+    print 'using: r.water.outlet'
     for op in range(0,len(outletsxxProj)):
         east = float(outletsxxProj[op])
         north = float(outletsyyProj[op])
@@ -579,16 +584,29 @@ def flowaccumulation(filteredDemArray):
         outputoneBAS_filename = geotiffmapraster + '_onebasins_'+str(op+ 1)+'.tif'
         print g.run_command('r.out.gdal',overwrite=True,\
                         input = "oneoutletbasin"+str(op+ 1), type='Float32',\
-                        output='C:\\Mystuff\\grassgisdatabase\\'+\
+                        output='C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'+\
                         outputoneBAS_filename,\
                         nodata=-9999,format='GTiff')
-
-    #print g.read_command('g.list', _type='rast')
+    
+    # print g.read_command('g.list', _type='rast')
+    allbasins  = np.zeros((nanDemArrayfac.shape))
+    
+    # Read big basin files
+    for op in range(1,len(outletsxxProj)):
+        bigbasintif = 'C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'\
+                      +'skunkroi_onebasins_'+str(op)+'.tif'
+        dsbasin = gdal.Open(bigbasintif, gdal.GA_ReadOnly)
+        arybasin = dsbasin.GetRasterBand(1).ReadAsArray()
+        nanDemArrayBasins=np.array(arybasin.T)
+        allbasins[nanDemArrayBasins==1]=op
+        dsbasin = None
+    
     #"""
     # return back the dictionary of flow routing
     return {'outlets':outlets, 'fac':nanDemArrayfac ,\
             'fdr':nanDemArrayfdr ,'basins':nanDemArraybasins,\
-            'outletsxxProj':outletsxxProj, 'outletsyyProj':outletsyyProj}
+            'outletsxxProj':outletsxxProj, 'outletsyyProj':outletsyyProj,\
+            'bigbasins':allbasins}
 
 
 # Skeleton by thresholding one grid measure e.g. flow or curvature
@@ -670,18 +688,22 @@ def main():
     # quantile of the absolute value of the gradient.
     print'Computing lambda = q-q-based nonlinear filtering threshold'
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayNp
-    slopeMagnitudeDemArrayQ = np.reshape(slopeMagnitudeDemArrayQ,np.size(slopeMagnitudeDemArrayQ))
+    slopeMagnitudeDemArrayQ = np.reshape(slopeMagnitudeDemArrayQ,\
+                                         np.size(slopeMagnitudeDemArrayQ))
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayQ[~np.isnan(slopeMagnitudeDemArrayQ)]
     print 'dem smoothing Quantile',defaults.demSmoothingQuantile
 
-    edgeThresholdValue = quantile(np.absolute(slopeMagnitudeDemArrayQ),defaults.demSmoothingQuantile)
+    edgeThresholdValue = quantile(np.absolute(slopeMagnitudeDemArrayQ),\
+                                  defaults.demSmoothingQuantile)
     print 'edgeThresholdValue :', edgeThresholdValue
 
     tempArray = np.reshape(slopeMagnitudeDemArrayNp,np.size(slopeMagnitudeDemArrayNp))
-    edgeThresholdValuescipy = mquantiles(np.absolute(slopeMagnitudeDemArrayQ),defaults.demSmoothingQuantile)
+    edgeThresholdValuescipy = mquantiles(np.absolute(slopeMagnitudeDemArrayQ),\
+                                         defaults.demSmoothingQuantile)
     print 'edgeThresholdValuescipy :', edgeThresholdValuescipy
 
-    edgeThresholdValueasmatlab = quantileasmatlab(np.absolute(tempArray),defaults.demSmoothingQuantile)
+    edgeThresholdValueasmatlab = quantileasmatlab(np.absolute(tempArray),\
+                                                  defaults.demSmoothingQuantile)
     print 'edgeThresholdValueasmatlab :', edgeThresholdValueasmatlab
 
     # performing Perona-Malik filtering
@@ -717,7 +739,8 @@ def main():
     #print slopeDemArray.shape
     #slopeDemArrayVector = np.array(slopeDemArray)[1,:]
     slopeMagnitudeDemArrayQ = slopeDemArray
-    slopeMagnitudeDemArrayQ = np.reshape(slopeMagnitudeDemArrayQ,np.size(slopeMagnitudeDemArrayQ))
+    slopeMagnitudeDemArrayQ = np.reshape(slopeMagnitudeDemArrayQ,\
+                                         np.size(slopeMagnitudeDemArrayQ))
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayQ[~np.isnan(slopeMagnitudeDemArrayQ)]
     print ' angle min:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.001))*180/np.pi
     print ' angle max:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.999))*180/np.pi
@@ -726,7 +749,9 @@ def main():
     print 'computing curvature'
     curvatureDemArray= filteredDemArraynp
     curvatureDemArray[curvatureDemArray== defaults.demErrorFlag]=np.NaN
-    curvatureDemArray = compute_dem_curvature(curvatureDemArray,Parameters.demPixelScale,defaults.curvatureCalcMethod)
+    curvatureDemArray = compute_dem_curvature(curvatureDemArray,\
+                                              Parameters.demPixelScale,\
+                                              defaults.curvatureCalcMethod)
 
     # Writing the curvature array
     # inputArray = curvatureDemArray
@@ -761,8 +786,10 @@ def main():
     # Computing contributing areas
     print 'Computing upstream accumulation areas using MFD from GRASS GIS'
     """
-    gets back return {'outlets':outlets, 'fac':nanDemArrayfac ,\
-            'fdr':nanDemArrayfdr ,'basins':nanDemArraybasins}
+    return {'outlets':outlets, 'fac':nanDemArrayfac ,\
+            'fdr':nanDemArrayfdr ,'basins':nanDemArraybasins,\
+            'outletsxxProj':outletsxxProj, 'outletsyyProj':outletsyyProj,\
+            'bigbasins':allbasins}
     """
     # Call the flow accumulation function
     flowroutingresults = flowaccumulation(filteredDemArray)
@@ -777,10 +804,32 @@ def main():
     # default value is 10,000
     subBasinIndexArray = flowroutingresults['basins']
     #subBasinIndexArray[subBasinIndexArray==-9999]=np.nan
+    basinIndexArray = flowroutingresults['bigbasins']
 
     flowArray[np.isnan(filteredDemArray)]=np.nan
     flowMean = np.mean(flowArray[~np.isnan(flowArray[:])])
-    print 'Mean upstream flow: ', flowMean    
+    print 'Mean upstream flow: ', flowMean
+
+    # plotting only for testing purposes
+    defaults.figureNumber = defaults.figureNumber + 1
+    plt.figure(defaults.figureNumber)
+    plt.imshow(flowArray,cmap=cm.Dark2)
+    plt.plot(outletPointsList[0],outletPointsList[1],'go')
+    plt.xlabel('X[m]')
+    plt.ylabel('Y[m]')
+    plt.title('flowArray with outlets')
+    plt.show()
+    
+    # plotting only for testing purposes
+    defaults.figureNumber = defaults.figureNumber + 1
+    plt.figure(defaults.figureNumber)
+    plt.imshow(basinIndexArray,cmap=cm.Dark2)
+    plt.plot(outletPointsList[0],outletPointsList[1],'go')
+    plt.xlabel('X[m]')
+    plt.ylabel('Y[m]')
+    plt.title('basinIndexArray with outlets')
+    plt.show()
+
 
     # Define a skeleton based on flow alone
     skeletonFromFlowArray = \
@@ -813,14 +862,15 @@ def main():
     outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
     outfilename = Parameters.demFileName
     outfilename = outfilename.split('.')[0]+'_skeleton.tif'
-    write_geotif_generic(skeletonFromFlowAndCurvatureArray,outfilepath,outfilename)
+    write_geotif_generic(skeletonFromFlowAndCurvatureArray,\
+                         outfilepath,outfilename)
 
     
     # Computing the percentage drainage areas
     print 'Computing percentage drainage area of each indexed basin'
     # I will add this part later..
     # as this is additional..
-    fastMarchingStartPointList = outletPointsList
+    fastMarchingStartPointList = np.array(outletPointsList)
 
 
     # Computing the local cost function
@@ -857,33 +907,35 @@ def main():
 
     # Fast marching
     print 'Performing fast marching'
-    print '# of unique basins:',np.size(np.unique(subBasinIndexArray))
+    print '# of unique basins:',np.size(np.unique(basinIndexArray))
     # Now access each unique basin and get the
     # outlets for it
-    basinIndexList = np.unique(subBasinIndexArray)
+    basinIndexList = np.unique(basinIndexArray)
     print 'basinIndexList:', str(basinIndexList)
 
     # Do fast marching for each sub basin
-    geodesicDistanceArray = np.zeros((subBasinIndexArray.shape))
+    geodesicDistanceArray = np.zeros((basinIndexArray.shape))
     geodesicDistanceArray[geodesicDistanceArray==0]=np.nan
     defaults.figureNumber = defaults.figureNumber + 1
-    for i in range(1,basinIndexList.size):
-        print 'basin Index:',str(basinIndexList[i])
-        maskedBasin = np.zeros((subBasinIndexArray.shape))
-        maskedBasin[subBasinIndexArray==basinIndexList[i]]=1
+    for i in range(0,len(fastMarchingStartPointList[0])):
+        basinIndexList = basinIndexArray[fastMarchingStartPointList[0,i],\
+                                         fastMarchingStartPointList[1,i]]
+        print 'basin Index:',str(basinIndexList)
+        maskedBasin = np.zeros((basinIndexArray.shape))
+        maskedBasin[basinIndexArray==basinIndexList]=1
         # For the masked basin get the maximum accumulation are
         # location and use that as an outlet for the basin.
-        maskedBasinFAC = np.zeros((subBasinIndexArray.shape))
-        maskedBasinFAC[subBasinIndexArray==basinIndexList[i]]=\
-            flowArray[subBasinIndexArray==basinIndexList[i]]
+        maskedBasinFAC = np.zeros((basinIndexArray.shape))
+        maskedBasinFAC[basinIndexArray==basinIndexList]=\
+            flowArray[basinIndexArray==basinIndexList]
         maskedBasinFAC[maskedBasinFAC==0]=np.nan
         # Get the outlet of subbasin
         maskedBasinFAC[np.isnan(maskedBasinFAC)]=0
         subBasinoutletindices = np.where(maskedBasinFAC==maskedBasinFAC.max())
         # print subBasinoutletindices
         # outlets locations in projection of the input dataset
-        outletsxx = subBasinoutletindices[0]
-        outletsyy = subBasinoutletindices[1]
+        outletsxx = fastMarchingStartPointList[0,i]#subBasinoutletindices[0]
+        outletsyy = fastMarchingStartPointList[1,i]#subBasinoutletindices[1]
         # call the fast marching here
         phi = -1*np.ones((reciprocalLocalCostArray.shape))
         phi[maskedBasinFAC!=0] = reciprocalLocalCostArray[maskedBasinFAC!=0]
@@ -895,10 +947,11 @@ def main():
         #distancearray[distancearray<0]=np.nan
         #travelTimearray[travelTimearray==0]=np.nan
         geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
+
         plt.figure(defaults.figureNumber)
         plt.imshow(travelTimearray,cmap=cm.coolwarm)
         plt.contour(travelTimearray,cmap=cm.coolwarm)
-        plt.title('basin Index'+str(basinIndexList[i]))
+        plt.title('basin Index'+str(basinIndexList))
         #pl.savefig('2d_phi.png')
         plt.show()
 

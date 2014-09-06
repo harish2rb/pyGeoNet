@@ -19,6 +19,8 @@ for op in range(1,101):
     aryskel = dsskel.GetRasterBand(1).ReadAsArray()
     nanDemArrayskel=np.array(aryskel.T)
     allbasins[nanDemArrayskel==1]=op
+    dsskel = None
+    
 
 pl.imshow(allbasins,cmap=cm.Set1)
 pl.colorbar()
