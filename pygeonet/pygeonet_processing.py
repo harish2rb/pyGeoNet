@@ -628,6 +628,140 @@ def normalize(inputArray):
     normalizedArray = normalizedArray/ np.max(normalizedArray[:])
     return normalizedArray
 
+# Compute discrete geodesics
+def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradientDescent ):
+    #print 'computing discrete geodesics'
+    # Extract a discrete geodesic path in 2D
+    # D = geodesic distance matrix
+    # x = channel head or start point
+    # path = variable that stores the pixel values of the stream line.
+    skeletonEndPoint = skeletonEndPoint[:]
+    #print skeletonEndPoint[:]
+    streamPathPixelList = skeletonEndPoint[:]
+    print 'skeletonEndPoint',skeletonEndPoint
+    # Creating the 8 cell neighbor moves
+    tempArrayDxMoves = [1, -1, 0, 0, 1, -1, 1, -1]
+    tempArrayDyMoves = [0, 0, 1, -1, 1, -1, -1, 1]
+    tempArray = [tempArrayDxMoves,tempArrayDyMoves]
+    # Get the geodesic value for the channel head
+    channelHeadGeodesicDistance = geodesicDistanceArray[skeletonEndPoint[0],skeletonEndPoint[1]]
+    #print 'channelHeadGeodesicDistance',channelHeadGeodesicDistance
+    # Get the size of the geodesic distance
+    geodesicDistanceArraySize = geodesicDistanceArray.shape
+    # While we find a geodesic distance less then previous value
+    while True:
+        cardinalDxMoves = [1, -1, 0, 0]
+        cardinalDyMoves = [0, 0, 1, -1]
+        diagonalDxMoves = [1, -1, 1, -1]
+        diagonalDyMoves = [1, -1, -1, 1]
+        cardinalAllPossibleMoves = [cardinalDxMoves,cardinalDyMoves]
+        diagonalAllPossibleMoves = [diagonalDxMoves,diagonalDyMoves]
+        tempStreamPathPixelList = streamPathPixelList[:,-1]
+        #print tempStreamPathPixelList
+        tempStreamPathPixelListA = np.array([[tempStreamPathPixelList[0]],\
+                                             [tempStreamPathPixelList[1]]])
+        cardinalSkeletonEndPoint = np.repeat(tempStreamPathPixelListA,4,axis=1)+\
+                                      cardinalAllPossibleMoves
+        diagonalSkeletonEndPoint = np.repeat(tempStreamPathPixelListA,4,axis=1)+\
+                                   diagonalAllPossibleMoves
+        r1 = cardinalSkeletonEndPoint.tolist()[0]
+        r2 = cardinalSkeletonEndPoint.tolist()[1]
+        r3 = diagonalSkeletonEndPoint.tolist()[0]
+        r4 = diagonalSkeletonEndPoint.tolist()[1]
+        neighborPixelSkeletonEndPointList = np.array([r1 + r3,r2 + r4])
+        #print neighborPixelSkeletonEndPointList
+        
+        r5 = neighborPixelSkeletonEndPointList.tolist()[0]
+        r6 = neighborPixelSkeletonEndPointList.tolist()[1]
+
+        # Get the indices which are not on boundary
+        cardinalAllowedIndex = [cardinalSkeletonEndPoint[0,:] > 0] and \
+                               [cardinalSkeletonEndPoint[1,:] > 0]and\
+                               [cardinalSkeletonEndPoint[0,:] <= geodesicDistanceArraySize[0]] and\
+                               [cardinalSkeletonEndPoint[1,:] <= geodesicDistanceArraySize[1]]
+        diagonalAllowedIndex = [diagonalSkeletonEndPoint[0,:] > 0] and \
+                               [diagonalSkeletonEndPoint[1,:] > 0] and\
+                               [diagonalSkeletonEndPoint[0,:] <= geodesicDistanceArraySize[0]] and\
+                               [diagonalSkeletonEndPoint[1,:] <= geodesicDistanceArraySize[1]]
+        allAllowedIndex = [neighborPixelSkeletonEndPointList[0,:] > 0] and\
+                          [neighborPixelSkeletonEndPointList[1,:] > 0] and\
+                    [neighborPixelSkeletonEndPointList[0,:] <= geodesicDistanceArraySize[0]] and\
+                    [neighborPixelSkeletonEndPointList[1,:] <= geodesicDistanceArraySize[1]]
+        
+        #print cardinalAllowedIndex[0]
+        #print diagonalAllowedIndex[0]
+        #print allAllowedIndex[0]
+
+        # Now remove neighbors that are no boundary
+        # build the true false array
+        tfCarray = np.array([cardinalAllowedIndex[0],cardinalAllowedIndex[0]])
+        tfCarrayMask = np.zeros((tfCarray.shape))
+        tfCarrayMask[tfCarray==False]=1
+        
+        tfDarray = np.array([diagonalAllowedIndex[0],diagonalAllowedIndex[0]])
+        tfDarrayMask = np.zeros((tfDarray.shape))
+        tfDarrayMask[tfDarray==False]=1
+        
+        tfAarray = np.array([allAllowedIndex[0],allAllowedIndex[0]])
+        tfAarrayMask = np.zeros((tfAarray.shape))
+        tfAarrayMask[tfAarray==False]=1
+        
+        # Now remove the false indices from our neighborhood matrix
+        # Now arrange the arrays above
+        cardinalSkeletonEndPointAllowed = npma.masked_array(cardinalSkeletonEndPoint,\
+                                                            mask=tfCarrayMask)
+        diagonalSkeletonEndPointAllowed = npma.masked_array(diagonalSkeletonEndPoint,\
+                                                            mask=tfDarrayMask)
+        neighborPixelSkeletonEndPointListAllowed=npma.masked_array(neighborPixelSkeletonEndPointList,\
+                                                            mask=tfAarrayMask)
+
+        # Get the minimum value of geodesic distance in the 8 cell neighbor
+        # Get the values of D(I) and adjust values for diagonal elements
+        allGeodesicDistanceList = np.array(geodesicDistanceArray[\
+                neighborPixelSkeletonEndPointListAllowed[0,:],\
+                neighborPixelSkeletonEndPointListAllowed[1,:]])
+        cardinalPixelGeodesicDistanceList = np.array(geodesicDistanceArray[\
+                cardinalSkeletonEndPointAllowed[0,:],\
+                cardinalSkeletonEndPointAllowed[1,:]])
+        diagonalPixelGeodesicDistanceList= np.array(geodesicDistanceArray[\
+                diagonalSkeletonEndPointAllowed[0,:],\
+                diagonalSkeletonEndPointAllowed[1,:]])
+
+        # for cells in horizontal and vertical positions to the
+        # current cell
+        cardinalPixelGeodesicDistanceList = channelHeadGeodesicDistance - \
+                                            cardinalPixelGeodesicDistanceList
+        # for cells in the diagonal position to the current cell
+        diagonalPixelGeodesicDistanceList = (channelHeadGeodesicDistance - \
+                                            diagonalPixelGeodesicDistanceList)/np.sqrt(2)
+
+        #print 'cardinalPixelGeodesicDistanceList',cardinalPixelGeodesicDistanceList
+        #print 'diagonalPixelGeodesicDistanceList',diagonalPixelGeodesicDistanceList
+
+        neighborPixelGeodesicDistanceList = np.array([cardinalPixelGeodesicDistanceList,\
+                                             diagonalPixelGeodesicDistanceList])
+
+        # get the index of the maximum geodesic array
+        chosenGeodesicIndex = np.argmax(neighborPixelGeodesicDistanceList)
+        #print 'chosenGeodesicIndex',chosenGeodesicIndex
+        # This is required to break out of the while loop
+        chosenGeodesicDistanceFromAll = np.amin(allGeodesicDistanceList)
+        #print 'neighborPixelSkeletonEndPointList',neighborPixelSkeletonEndPointList
+        neighborPixelSkeletonEndPointList = neighborPixelSkeletonEndPointList[:,chosenGeodesicIndex]
+        #print neighborPixelSkeletonEndPointList
+        if chosenGeodesicDistanceFromAll > channelHeadGeodesicDistance :
+            break
+        channelHeadGeodesicDistance = chosenGeodesicDistanceFromAll
+        # Finally add the value of neighborPixelSkeletonEndPointList
+        # to path list
+        b = np.array([[neighborPixelSkeletonEndPointList[0]],\
+                      [neighborPixelSkeletonEndPointList[1]]])
+        #print 'b',b        
+        streamPathPixelList = np.hstack((streamPathPixelList,b))
+        #print 'streamPathPixelList',streamPathPixelList
+    return streamPathPixelList
+        
+
 #---------------------------------------------------------------------------------
 #------------------- MAIN FUNCTION--------------------------------------------------
 #---------------------------------------------------------------------------------
@@ -948,12 +1082,12 @@ def main():
         #travelTimearray[travelTimearray==0]=np.nan
         geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
 
-        plt.figure(defaults.figureNumber)
-        plt.imshow(travelTimearray,cmap=cm.coolwarm)
-        plt.contour(travelTimearray,cmap=cm.coolwarm)
-        plt.title('basin Index'+str(basinIndexList))
+        #plt.figure(defaults.figureNumber)
+        #plt.imshow(travelTimearray,cmap=cm.coolwarm)
+        #plt.contour(travelTimearray,cmap=cm.coolwarm)
+        #plt.title('basin Index'+str(basinIndexList))
         #pl.savefig('2d_phi.png')
-        plt.show()
+        #plt.show()
 
     # Plot the geodesic array
     defaults.figureNumber = defaults.figureNumber + 1
@@ -1067,22 +1201,36 @@ def main():
     plt.colorbar()
     plt.show()             
             
-    """
+    #"""
     # Do compute discrete geodesics
     print 'Computing discrete geodesics'
+    geodesicPathsCellList = []
     numberOfEndPoints = len(xx)
     for i in range(0,numberOfEndPoints):
+        print 'EndPoint# ',i
         xEndPoint = xx[i]
         yEndPoint = yy[i]
-        watershedLabel = subBasinIndexArray[xEndPoint,yEndPoint]
-        watershedIndexList = subBasinIndexArray == watershedLabel
+        skeletonEndPoint = np.array([[xEndPoint],[yEndPoint]]) 
+        watershedLabel = basinIndexList[xEndPoint,yEndPoint]
+        print 'watershedLabel',watershedLabel
+        watershedIndexList = basinIndexList == watershedLabel
         geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
         geodesicDistanceArrayMask[watershedIndexList]= geodesicDistanceArray[watershedIndexList]
         geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
-        geodesicPathsCellList{i} = compute_discrete_geodesic(geodesicDistanceArrayMask,\
-                                    skeletonEndPointsList(i,:).T,defaults.doTrueGradientDescent)
-     """   
-
+        geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
+                                    skeletonEndPoint,defaults.doTrueGradientDescent))
+    #
+    print 'geodesicPathsCellList',geodesicPathsCellList
+    defaults.figureNumber = defaults.figureNumber + 1
+    plt.figure(defaults.figureNumber)
+    pl.imshow(geodesicDistanceArray,cmap=cm.coolwarm)
+    for pp in range(0,len(geodesicPathsCellList)):
+        pl.plot(geodesicPathsCellList[pp][1,:],geodesicPathsCellList[pp][0,:],'-r')
+    pl.plot(yy,xx,'og')
+    pl.title('Geodesic Array with channel heads and streams')
+    pl.colorbar()
+    pl.show()
+    
     # Write shapefiles of channel heads and stream network
 
 

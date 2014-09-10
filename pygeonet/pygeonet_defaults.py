@@ -60,3 +60,4 @@ thresholdQqCurvature=1
 flowThresholdForSkeleton=50
 
 endPointSearchBoxSize = 30
+doTrueGradientDescent = 1
