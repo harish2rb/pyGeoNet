@@ -17,6 +17,7 @@ import scipy.signal as conv2
 from scipy import stats
 import skfmm
 from scipy import ndimage
+import numpy.ma as npma
 
 # ----------- GRASS GIS SETUP ------------------
 #setting up the environment for grass gis access
@@ -1211,9 +1212,9 @@ def main():
         xEndPoint = xx[i]
         yEndPoint = yy[i]
         skeletonEndPoint = np.array([[xEndPoint],[yEndPoint]]) 
-        watershedLabel = basinIndexList[xEndPoint,yEndPoint]
+        watershedLabel = basinIndexArray[xEndPoint,yEndPoint]
         print 'watershedLabel',watershedLabel
-        watershedIndexList = basinIndexList == watershedLabel
+        watershedIndexList = basinIndexArray == watershedLabel
         geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
         geodesicDistanceArrayMask[watershedIndexList]= geodesicDistanceArray[watershedIndexList]
         geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
@@ -1223,13 +1224,13 @@ def main():
     print 'geodesicPathsCellList',geodesicPathsCellList
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    pl.imshow(geodesicDistanceArray,cmap=cm.coolwarm)
+    plt.imshow(geodesicDistanceArray,cmap=cm.coolwarm)
     for pp in range(0,len(geodesicPathsCellList)):
-        pl.plot(geodesicPathsCellList[pp][1,:],geodesicPathsCellList[pp][0,:],'-r')
-    pl.plot(yy,xx,'og')
-    pl.title('Geodesic Array with channel heads and streams')
-    pl.colorbar()
-    pl.show()
+        plt.plot(geodesicPathsCellList[pp][1,:],geodesicPathsCellList[pp][0,:],'-r')
+    plt.plot(yy,xx,'og')
+    plt.title('Geodesic Array with channel heads and streams')
+    plt.colorbar()
+    plt.show()
     
     # Write shapefiles of channel heads and stream network
 
