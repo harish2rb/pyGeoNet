@@ -1,7 +1,7 @@
 import numpy as np
 import pylab as pl
 import skfmm
-from osgeo import gdal,osr
+from osgeo import gdal,osr,ogr
 from matplotlib import cm
 from scipy import ndimage
 import numpy.ma as npma
@@ -132,6 +132,33 @@ pl.plot(yy,xx,'or')
 pl.title('Skeleton Num elements Array with channel heads')
 pl.colorbar()
 pl.show()
+
+skeletonEndPoint = np.array([[xx],[yy]])
+
+def write_channelHead_shapefile(skeletonEndPoint):
+    driverName = "ESRI Shapefile"
+    drv = gdal.GetDriverByName( driverName )
+    if drv is None:
+        print "%s driver not available.\n" % driverName
+        sys.exit( 1 )
+
+    ds = drv.Create( "point_out.shp", 0, 0, 0, gdal.GDT_Unknown )
+    if ds is None:
+        print "Creation of output file failed.\n"
+        sys.exit( 1 )
+
+    lyr = ds.CreateLayer( "point_out", None, ogr.wkbPoint )
+    if lyr is None:
+        print "Layer creation failed.\n"
+        sys.exit( 1 )
+    
+    field_defn = ogr.FieldDefn( "Name", ogr.OFTString )
+    field_defn.SetWidth( 32 )
+    
+
+
+
+stop
 
 def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradientDescent ):
     #print 'computing discrete geodesics'
