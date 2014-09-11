@@ -2,7 +2,7 @@
 import sys
 import os
 
-from osgeo import gdal,osr
+from osgeo import gdal,osr,ogr
 import statsmodels.api as sm
 import numpy as np
 from time import clock
@@ -762,6 +762,74 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         #print 'streamPathPixelList',streamPathPixelList
     return streamPathPixelList
         
+# Writing channel head shapefiles
+def write_channel_heads(xx,yy):
+    print "Writing Channel Heads shapefile"
+    
+    # set up the shapefile driver
+    driver = ogr.GetDriverByName(Parameters.driverName)
+    # This will delete and assist in overwrite of the shape files
+    if os.path.exists(Parameters.FileName):
+        driver.DeleteDataSource(Parameters.FileName)
+    
+    # create the data source
+    data_source = driver.CreateDataSource(Parameters.FileName)
+    
+    # create the spatial reference, same as the input dataset
+    srs = osr.SpatialReference()
+    gtf = Parameters.geotransform
+    georef = Parameters.inputwktInfo
+    
+    srs.ImportFromWkt(georef)
+    
+    # Project the xx, and yy points
+    xxProj = float(gtf[0])+ \
+                    float(gtf[1]) * np.array(xx) + \
+                    float(0.00964)
+    yyProj = float(gtf[3])+ \
+                    float(gtf[5])*np.array(yy) + \
+                    float(0.00155)
+    
+    
+    # create the layer
+    layer = data_source.CreateLayer(Parameters.shapefileName,\
+                                    srs, ogr.wkbPoint)
+    # Add the fields we're interested in
+    field_name = ogr.FieldDefn("Name", ogr.OFTString)
+    field_name.SetWidth(24)
+    layer.CreateField(field_name)
+    
+    field_region = ogr.FieldDefn("Region", ogr.OFTString)
+    field_region.SetWidth(24)
+    layer.CreateField(field_region)
+    
+    layer.CreateField(ogr.FieldDefn("Latitude", ogr.OFTReal))
+    layer.CreateField(ogr.FieldDefn("Longitude", ogr.OFTReal))
+    tmpfname = Parameters.demFileName
+    # Now add the channel heads as features to the layer
+    for i in xrange(0,len(xxProj)):
+        # create the feature
+        feature = ogr.Feature(layer.GetLayerDefn())
+        # Set the attributes using the values
+        feature.SetField("Name", 'ChannelHead')        
+        feature.SetField("Region", tmpfname.split(".")[0])
+        feature.SetField("Latitude", xxProj[i])
+        feature.SetField("Longitude", yyProj[i])
+        # create the WKT for the feature using Python string formatting
+        wkt = "POINT(%f %f)" %  (float(xxProj[i]) , float(yyProj[i]))
+        # Create the point from the Well Known Txt
+        point = ogr.CreateGeometryFromWkt(wkt)
+        # Set the feature geometry using the point
+        feature.SetGeometry(point)
+        # Create the feature in the layer (shapefile)
+        layer.CreateFeature(feature)
+        # Destroy the feature to free resources
+        feature.Destroy()
+
+    # Destroy the data source to free resources
+    data_source.Destroy()
+
+
 
 #---------------------------------------------------------------------------------
 #------------------- MAIN FUNCTION--------------------------------------------------
@@ -1232,8 +1300,11 @@ def main():
     plt.colorbar()
     plt.show()
     
-    # Write shapefiles of channel heads and stream network
+    # Write shapefiles of channel heads
+    write_channel_heads(xx,yy)
 
+    # Write stream network as shapefiles
+    
 
     
 if __name__ == '__main__':
