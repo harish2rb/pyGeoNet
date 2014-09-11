@@ -5,11 +5,40 @@ from osgeo import gdal,osr,ogr
 from matplotlib import cm
 from scipy import ndimage
 import numpy.ma as npma
+import sys
+
+"""
+cnt = ogr.GetDriverCount()
+formatsList = []  # Empty List
+
+driverName = "ESRI Shapefile"
+drv = ogr.GetDriverByName( driverName )
+drv = ogr.GetDriver(0)
+print drv.GetName()
+if drv is None:
+    print "%s driver not available.\n" % driverName
+    sys.exit( 1 )
 
 
+
+for i in range(cnt):
+    driver = ogr.GetDriver(i)
+    driverName = driver.GetName()
+    print i, driverName
+    if not driverName in formatsList:
+        formatsList.append(driverName)
+        
+stop
+formatsList.sort() # Sorting the messy list of ogr drivers
+
+for i in formatsList:
+    print i
+"""
 skeltif = 'C:\\Mystuff\\grassgisdatabase\\'+'skunkroi_skeleton.tif'
 dsskel = gdal.Open(skeltif, gdal.GA_ReadOnly)
 aryskel = dsskel.GetRasterBand(1).ReadAsArray()
+georef = dsskel.GetProjection()
+print georef
 nanDemArrayskel=np.array(aryskel.T)
 
 geoDtif = 'C:\\Mystuff\\grassgisdatabase\\'+'skunkroi_geodesicDistance.tif'
@@ -136,26 +165,44 @@ pl.show()
 skeletonEndPoint = np.array([[xx],[yy]])
 
 def write_channelHead_shapefile(skeletonEndPoint):
+    spatialReference = osr.SpatialReference()
+    spatialReference.ImportFromWkt(georef)
+    
     driverName = "ESRI Shapefile"
-    drv = gdal.GetDriverByName( driverName )
+    driver = ogr.GetDriver(0)
+    driverName = driver.GetName()
+    drv = ogr.GetDriverByName( driverName )
     if drv is None:
         print "%s driver not available.\n" % driverName
         sys.exit( 1 )
-
-    ds = drv.Create( "point_out.shp", 0, 0, 0, gdal.GDT_Unknown )
+    shapefileName = "C:\\Users\\Harish\\Documents" +"\
+                    \\GitHub\\pyGeoNet\\test_results\\point_out.shp"
+    ds = drv.CreateDataSource( shapefileName)
     if ds is None:
         print "Creation of output file failed.\n"
         sys.exit( 1 )
 
-    lyr = ds.CreateLayer( "point_out", None, ogr.wkbPoint )
+    lyr = ds.CreateLayer( 'point_out', spatialReference, ogr.wkbPoint )    
     if lyr is None:
         print "Layer creation failed.\n"
         sys.exit( 1 )
+    layerDefinition = lyr.GetLayerDefn()
+    point = ogr.Geometry(ogr.wkbPoint)
+    point.SetPoint(0, 474595, 4429281)
+    featureIndex = 0
+    feature = ogr.Feature(layerDefinition)
+    feature.SetGeometry(point)
+    feature.SetFID(featureIndex)
+    layer.CreateFeature(feature)
+    shapeData.Destroy()
     
-    field_defn = ogr.FieldDefn( "Name", ogr.OFTString )
-    field_defn.SetWidth( 32 )
+    # read the skeletonEndpoint and add them as points
+    x = float(skeletonEndPoint[0])
+    y = float(skeletonEndPoint[1])
+    print x,y
     
-
+    
+write_channelHead_shapefile(skeletonEndPoint)
 
 
 stop
