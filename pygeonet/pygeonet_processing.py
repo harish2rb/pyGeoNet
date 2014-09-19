@@ -311,64 +311,65 @@ def write_geotif_generic(inputArray,outfilepath,outfilename):
     # create the output image
     driver = Parameters.driver
     #print driver
-    outDs = driver.Create(output_fileName, ncols, nrows, 1, gdal.GDT_Float64)
+    outDs = driver.Create(output_fileName, nrows, ncols, 1, gdal.GDT_Float64)
     if outDs is None:
         print 'Could not create reclass_40.tif'
         sys.exit(1)
     outBand = outDs.GetRasterBand(1)
-    outData = inputArray
-    # flush data to disk, set the NoData value and calculate stats
-    outBand.FlushCache()
-    outBand.SetNoDataValue(-9999)
+    #outData = inputArray
+    #outBand.SetNoDataValue(-3.402823e+038)
     
     # set the reference info
     geotransform = Parameters.geotransform
-    cc = (geotransform[0],geotransform[1],geotransform[2],geotransform[3],geotransform[4],-geotransform[5])
+    cc = (geotransform[0],geotransform[1],geotransform[2],\
+          geotransform[3],geotransform[4],geotransform[5])
     outDs.SetGeoTransform(cc)
     outDs.SetProjection(Parameters.inputwktInfo)
 
     # write the band
     PMarray=np.array(inputArray)
-    outDs.GetRasterBand(1).WriteArray(PMarray.T)
-    del outDs, outBand, driver
+    outBand.WriteArray(PMarray)
+    # flush data to disk, set the NoData value and calculate stats
+    outBand.FlushCache()
+    
+    del PMarray, outDs, outBand, driver
 
     
 
 # Write geotiff to disk
 def write_geotif_filteredDEM(filteredDemArray,filepath,filename):
     print 'writing filtered DEM'
-    fullFilePath = filepath + filename
-    dataset = gdal.Open(fullFilePath, gdal.GA_ReadOnly)
-    # set file variables
-    output_fileName = "C:\\Mystuff\\grassgisdatabase\\PM_filtered.tif"
+    output_fileName = "C:\\Mystuff\\grassgisdatabase\\PM_filtered_grassgis.tif"
     # Create gtif
     ncols = filteredDemArray.shape[0]
     nrows = filteredDemArray.shape[1]
     print ncols, nrows
     # create the output image
-    driver = dataset.GetDriver()
+    driver = gdal.GetDriverByName('GTiff')
     #print driver
-    outDs = driver.Create(output_fileName, ncols, nrows, 1, gdal.GDT_Float32)
+    outDs = driver.Create(output_fileName,nrows,ncols,1, gdal.GDT_Float32)
     if outDs is None:
-        print 'Could not create reclass_40.tif'
+        print 'Could not create tif file'
         sys.exit(1)
-    outBand = outDs.GetRasterBand(1)
-    outData = dataset.GetRasterBand(1).ReadAsArray()
-    # flush data to disk, set the NoData value and calculate stats
-    outBand.FlushCache()
-    outBand.SetNoDataValue(-99)
-    
     # set the reference info
     geotransform = Parameters.geotransform
-    cc = (geotransform[0],geotransform[1],geotransform[2],geotransform[3],geotransform[4],-geotransform[5])
-    outDs.SetGeoTransform(cc)
+    outDs.SetGeoTransform(geotransform)
     outDs.SetProjection(Parameters.inputwktInfo)
-    
     # write the band
-    PMarray=np.array(filteredDemArray)
-    outDs.GetRasterBand(1).WriteArray(PMarray.T)
-    del outDs, outBand, driver
+    #PMarray=np.array(filteredDemArray)
+    outband = outDs.GetRasterBand(1)
+    PMarray = np.array(filteredDemArray)
+    print type(PMarray)
+    outband.WriteArray(PMarray)
+    outRasterSRS = osr.SpatialReference(wkt=Parameters.inputwktInfo)
+    authoritycode = outRasterSRS.GetAuthorityCode("PROJCS")
+    outRasterSRS.ImportFromEPSG(int(authoritycode))
+    outDs.SetProjection(outRasterSRS.ExportToWkt())
+    outband.FlushCache()
+    #stop
     
+
+    """
     # Sine the above raster is not north up, we need to write it
     # again so that grass gis can read it properly
     # this needs to be done for the filtered DEM only
@@ -381,7 +382,7 @@ def write_geotif_filteredDEM(filteredDemArray,filepath,filename):
     driver = dataset1.GetDriver()
 
     #print driver
-    outDs = driver.Create(output_fileName1, ncols, nrows, 1, gdal.GDT_Float32)
+    outDs = driver.Create(output_fileName1,ncols,nrows,1, gdal.GDT_Float32)
     if outDs is None:
         print 'Could not create reclass_40.tif'
         sys.exit(1)
@@ -390,7 +391,7 @@ def write_geotif_filteredDEM(filteredDemArray,filepath,filename):
     nanDemArray1=np.array(outData.T)
     # flush data to disk, set the NoData value and calculate stats
     outBand.FlushCache()
-    outBand.SetNoDataValue(-99)
+    outBand.SetNoDataValue(-9999)
 
     # georeference the image and set the projection
     geotransform = dataset1.GetGeoTransform()
@@ -400,24 +401,26 @@ def write_geotif_filteredDEM(filteredDemArray,filepath,filename):
     outDs.SetProjection(dataset1.GetProjection())
 
     # write the data as per grass gis
-    outBand.WriteArray(nanDemArray1.T)
-
-    del dataset, outData,outDs,outBand
+    outBand.WriteArray(nanDemArray1)
+    #"""
+    # finishing the writing of filtered DEM
+    del outDs, outband, driver,outRasterSRS
+    #del dataset, outData,outDs,outBand
 
     
 # Flow accumulation is computed by calling GRASS GIS functions.
 def flowaccumulation(filteredDemArray):
     ncols = filteredDemArray.shape[0]
     nrows = filteredDemArray.shape[1]
+    print ncols,nrows
     gisbase = os.environ['GISBASE']
     gisdbdir = 'C:\\Users\\Harish\\Documents\\grassdata'
+    originalGeotiff = Parameters.demDataFilePath + Parameters.demFileName
+    #geotiff = originalGeotiff
     geotiff = 'c:\\Mystuff\\grassgisdatabase\\PM_filtered_grassgis.tif'
     locationGeonet = 'geonet'
     mapsetGeonet = 'geonetuser'
     print 'Making the geonet location'
-    dsfiltered = gdal.Open(geotiff, gdal.GA_ReadOnly)
-    print dsfiltered.GetGeoTransform()
-    print dsfiltered.GetProjection()
     print g.run_command('g.proj', georef=geotiff,\
                     location= locationGeonet)
     location = locationGeonet  
@@ -442,27 +445,59 @@ def flowaccumulation(filteredDemArray):
     print 'geotiffmapraster: ',geotiffmapraster
     print g.run_command('r.in.gdal', input=geotiff, \
                         output=geotiffmapraster,overwrite=True)
-    
+    gtf = Parameters.geotransform
+    print gtf
     """
     # May be not required!
     # Set up grass region
     print 'g.region'
-    n = 4399029.000000002
-    s = 4397606.000000002
-    e = 445876.99999999907
-    w = 444447.99999999907
-    print g.run_command('g.region', flags = 'p', \
-              n = n ,s = s, e = e, w = w,\
+    north = gtf[3]
+    south = gtf[3]-nrows
+    west = gtf[0]
+    east = gtf[0]+ncols   #flags = 'p' 
+    print g.run_command('g.region', \
+              n = north ,s = south, e = east, w = west,\
               res = 1, rows = nrows ,cols = ncols)
-    """
+    #"""
     #Flow computation for massive grids (float version)
     print "Calling the r.watershed command from GRASS GIS"
     subbasinThreshold = defaults.thresholdAreaSubBasinIndexing
+    """
+    print g.run_command('r.watershed',overwrite=True,\
+        elevation=geotiffmapraster,\
+        threshold=subbasinThreshold, accumulation='acc1v23',basin = 'bas1v23',\
+        drainage = 'dra1v23')
+    """
+    print g.run_command('r.watershed',flags ='a',overwrite=True,\
+        elevation=geotiffmapraster,\
+        threshold=subbasinThreshold, accumulation='acc1v23',\
+        drainage = 'dra1v23')
+    
+    """
+    if the size of input data > 5000:
+        then call r.watershed with only one input multiple
+        times
     
     print g.run_command('r.watershed',overwrite=True,\
         elevation=geotiffmapraster,\
         threshold=subbasinThreshold, accumulation='acc1v23',basin = 'bas1v23',\
         drainage = 'dra1v23')
+    
+    print g.run_command('r.watershed',overwrite=True,\
+        elevation=geotiffmapraster,\
+        threshold=subbasinThreshold, accumulation='acc1v23',basin = 'bas1v23',\
+        drainage = 'dra1v23')
+    """
+    print 'r.maplac'
+    print g.run_command('r.mapcalc',overwrite=True,\
+        expression='outletmap = dra1v23 < 0')
+    outlet_filename = geotiffmapraster + '_outlets.tif'
+    print g.run_command('r.out.gdal',overwrite=True,\
+                        input='outletmap', type='Float32',\
+                        output='C:\\Mystuff\\grassgisdatabase\\' +\
+                        outlet_filename,\
+                        format='GTiff')
+    
     # Number of rasters after computation
     print g.read_command('g.list', _type = 'rast')
 
@@ -472,27 +507,39 @@ def flowaccumulation(filteredDemArray):
                         input='acc1v23', type='Float64',\
                         output='C:\\Mystuff\\grassgisdatabase\\' +\
                         outputFAC_filename,\
-                        nodata=-9999,format='GTiff')
+                        format='GTiff')
     
     outputFDR_filename = geotiffmapraster + '_fdr.tif'
     print g.run_command('r.out.gdal',overwrite=True,\
-                        input = "dra1v23", type='Float32',\
+                        input = "dra1v23", type='Float64',\
                         output='C:\\Mystuff\\grassgisdatabase\\'+\
                         outputFDR_filename,\
-                        nodata=-9999,format='GTiff')
-    
+                        format='GTiff')
+    """
     outputBAS_filename = geotiffmapraster + '_basins.tif'
     print g.run_command('r.out.gdal',overwrite=True,\
-                        input = "bas1v23", type='Float32',\
+                        input = "bas1v23", type='Float64',\
                         output='C:\\Mystuff\\grassgisdatabase\\'+\
                         outputBAS_filename,\
-                        nodata=-9999,format='GTiff')
-    
+                        format='GTiff')
+    """
     # plot the flow directions
     fdrtif = 'C:\\Mystuff\\grassgisdatabase\\'+outputFDR_filename
     dsfdr = gdal.Open(fdrtif, gdal.GA_ReadOnly)
     aryfdr = dsfdr.GetRasterBand(1).ReadAsArray()
-    nanDemArrayfdr=np.array(aryfdr.T)
+    nanDemArrayfdr=np.array(aryfdr)
+    nanDemArrayfdrT = nanDemArrayfdr.T
+    del dsfdr,aryfdr
+
+    outlettif = 'C:\\Mystuff\\grassgisdatabase\\'+outlet_filename
+    dsout = gdal.Open(outlettif, gdal.GA_ReadOnly)
+    aryfdrout = dsout.GetRasterBand(1).ReadAsArray()
+    nanDemArrayfdrout=np.array(aryfdrout)
+    del dsout,aryfdrout
+
+    outletfromtif = np.where(nanDemArrayfdrout==1)
+    print 'outletfromtif'
+    print outletfromtif
     """
     Output drainage raster map contains drainage direction.
     Provides the "aspect" for each cell measured CCW from East.
@@ -506,119 +553,124 @@ def flowaccumulation(filteredDemArray):
     negative cells indicates the direction of flow.
     
     """ 
-    outlets = np.where((nanDemArrayfdr<0) & (nanDemArrayfdr!=-9999))
+    #outlets = np.where((nanDemArrayfdr<0) & (nanDemArrayfdr!=-3.402823e+038))
+    outlets = np.where(nanDemArrayfdrT<0)
+    print "Number of outlets :", str(len(outlets[0]))    
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
     plt.imshow(nanDemArrayfdr)
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('Flow directions DEM')
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
 
     # plot the flow accumulation
     factif = 'C:\\Mystuff\\grassgisdatabase\\'+outputFAC_filename
     dsfac = gdal.Open(factif, gdal.GA_ReadOnly)
     aryfac = dsfac.GetRasterBand(1).ReadAsArray()
-    nanDemArrayfac=np.array(aryfac.T)
+    nanDemArrayfac=np.array(aryfac)
+    del dsfac,aryfac
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
     plt.imshow(nanDemArrayfac,cmap=cm.BrBG)
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('Flow accumulations DEM')
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
 
-    # plot the basins
-    basintif = 'C:\\Mystuff\\grassgisdatabase\\'+outputBAS_filename
-    dsbasins = gdal.Open(basintif, gdal.GA_ReadOnly)
-    arybasins = dsbasins.GetRasterBand(1).ReadAsArray()
-    nanDemArraybasins=np.array(arybasins.T)
-    defaults.figureNumber = defaults.figureNumber + 1
-    plt.figure(defaults.figureNumber)
-    plt.imshow(nanDemArraybasins)
-    plt.xlabel('X[m]')
-    plt.ylabel('Y[m]')
-    plt.title('Basins DEM [ATH = '+str(subbasinThreshold)+' ]')
-    plt.show()
-
+    
     # outlets locations in projection of the input dataset
     print outlets
     outletsxx = outlets[0]
     outletsxxfloat = [float(x)+0.5 for x in outletsxx]
     outletsyy = outlets[1]
     outletsyyfloat = [float(x)+0.5 for x in outletsyy]
-    
-    gtf = Parameters.geotransform
-    print float(gtf[0])
     """
     outletsxxProj = np.array(outletsxxfloat) * Parameters.demPixelScale + \
-                    Parameters.xLowerLeftCoord
+                    Parameters.xLowerLeftCoord + float(0.0164)
     outletsyyProj = Parameters.yLowerLeftCoord - np.array(outletsyyfloat) * \
                     Parameters.demPixelScale + \
-                    Parameters.yDemSize * Parameters.demPixelScale
-    """
+                    Parameters.yDemSize * Parameters.demPixelScale + float(0.0155)
+    
     # The extra decimal digits is essentially a hack into
     # Grass GIS r.water.outlet routine, which only, works
     # with atleast 4 significant digits
+    """
+    print gtf
     outletsxxProj = float(gtf[0])+ \
-                    float(gtf[1]) * np.array(outletsxx) + \
-                    float(0.00964)
-    outletsyyProj = float(gtf[3])+ \
-                    float(gtf[5])*np.array(outletsyyfloat) + \
-                    float(0.00155)
+                    float(gtf[1]) * np.array(outletsxxfloat)
     
+    outletsyyProj = float(gtf[3])+ \
+                    float(gtf[5])*np.array(outletsyy)
+    
+    #"""
     #print outletsxxProj,outletsyyProj
     
     # Call the watershed outlet grass gis function to find the
     # basin Index that will be used for FM marching
     #"""
+    #outletFac = []
     print 'using: r.water.outlet'
+    nanDemArrayfacT = nanDemArrayfac.T
     for op in range(0,len(outletsxxProj)):
-        east = float(outletsxxProj[op])
-        north = float(outletsyyProj[op])
-        print 'east :',east,'north :',north
+        east = outletsxxProj[op]
+        north = outletsyyProj[op]
+        outletfac = nanDemArrayfacT[outletsxx[op],outletsyy[op]]
+        print '#:',str(op),'east :',east,' north :',north,' outletfac: ',outletfac
         print g.run_command('r.water.outlet',overwrite=True,\
                     input = 'dra1v23', output = 'oneoutletbasin'+str(op+ 1),\
                     coordinates=[east,north])
-        
         # done making big basins
         outputoneBAS_filename = geotiffmapraster + '_onebasins_'+str(op+ 1)+'.tif'
         print g.run_command('r.out.gdal',overwrite=True,\
                         input = "oneoutletbasin"+str(op+ 1), type='Float32',\
                         output='C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'+\
                         outputoneBAS_filename,\
-                        nodata=-9999,format='GTiff')
-    
+                        format='GTiff')
+
     # print g.read_command('g.list', _type='rast')
-    allbasins  = np.zeros((nanDemArrayfac.shape))
+    allbasins  = np.zeros((nanDemArrayfacT.shape))
+    #print outletFac    
     
     # Read big basin files
     for op in range(1,len(outletsxxProj)):
-        bigbasintif = 'C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'\
-                      +'skunkroi_onebasins_'+str(op)+'.tif'
+        bigbasintif = 'C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'+\
+                      geotiffmapraster+'_onebasins_'+str(op)+'.tif'
         dsbasin = gdal.Open(bigbasintif, gdal.GA_ReadOnly)
         arybasin = dsbasin.GetRasterBand(1).ReadAsArray()
-        nanDemArrayBasins=np.array(arybasin.T)
-        allbasins[nanDemArrayBasins==1]=op
+        nanDemArrayBasins=np.array(arybasin)
+        nanDemArrayBasinsT = nanDemArrayBasins.T
+        allbasins[nanDemArrayBasinsT==1]=op
         dsbasin = None
     
     #"""
+    return {'outlets':outlets, 'fac':nanDemArrayfac ,\
+            'fdr':nanDemArrayfdr,\
+            'outletsxxProj':outletsxxProj, 'outletsyyProj':outletsyyProj,\
+            'bigbasins':allbasins}
+    """
     # return back the dictionary of flow routing
     return {'outlets':outlets, 'fac':nanDemArrayfac ,\
             'fdr':nanDemArrayfdr ,'basins':nanDemArraybasins,\
             'outletsxxProj':outletsxxProj, 'outletsyyProj':outletsyyProj,\
             'bigbasins':allbasins}
+    """
+    # end of flow accumulation
 
 
 # Skeleton by thresholding one grid measure e.g. flow or curvature
 def compute_skeleton_by_single_threshold(inputArray, threshold):
     skeletonArray = np.zeros((inputArray.shape))
+    #skeletonArray = skeletonArray.T
     skeletonArray[np.where(inputArray> threshold)] = 1
     return skeletonArray
 
 # Skeleton by thresholding two grid measures e.g. flow and curvature
 def compute_skeleton_by_dual_threshold(inputArray1, inputArray2, threshold1, threshold2):
     skeletonArray = np.zeros((inputArray1.shape))
+    #skeletonArray = skeletonArray.T
     mask = np.where((inputArray1> threshold1) & (inputArray2>threshold2))
     skeletonArray[mask] = 1
     return skeletonArray
@@ -649,6 +701,7 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
     #print 'channelHeadGeodesicDistance',channelHeadGeodesicDistance
     # Get the size of the geodesic distance
     geodesicDistanceArraySize = geodesicDistanceArray.shape
+    print geodesicDistanceArraySize
     # While we find a geodesic distance less then previous value
     while True:
         cardinalDxMoves = [1, -1, 0, 0]
@@ -669,25 +722,33 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         r2 = cardinalSkeletonEndPoint.tolist()[1]
         r3 = diagonalSkeletonEndPoint.tolist()[0]
         r4 = diagonalSkeletonEndPoint.tolist()[1]
+
         neighborPixelSkeletonEndPointList = np.array([r1 + r3,r2 + r4])
-        #print neighborPixelSkeletonEndPointList
-        
+
         r5 = neighborPixelSkeletonEndPointList.tolist()[0]
         r6 = neighborPixelSkeletonEndPointList.tolist()[1]
 
         # Get the indices which are not on boundary
-        cardinalAllowedIndex = [cardinalSkeletonEndPoint[0,:] > 0] and \
-                               [cardinalSkeletonEndPoint[1,:] > 0]and\
-                               [cardinalSkeletonEndPoint[0,:] <= geodesicDistanceArraySize[0]] and\
-                               [cardinalSkeletonEndPoint[1,:] <= geodesicDistanceArraySize[1]]
+        cardinalAllowedIndex = [cardinalSkeletonEndPoint[0,:] > 0] and\
+                               [cardinalSkeletonEndPoint[1,:] > 0] and\
+                               [cardinalSkeletonEndPoint[0,:] < geodesicDistanceArraySize[0]] and\
+                               [cardinalSkeletonEndPoint[1,:] < geodesicDistanceArraySize[1]] and\
+                               [cardinalSkeletonEndPoint[0,:] != geodesicDistanceArraySize[0]] and\
+                               [cardinalSkeletonEndPoint[1,:] != geodesicDistanceArraySize[1]]
+                               
         diagonalAllowedIndex = [diagonalSkeletonEndPoint[0,:] > 0] and \
                                [diagonalSkeletonEndPoint[1,:] > 0] and\
-                               [diagonalSkeletonEndPoint[0,:] <= geodesicDistanceArraySize[0]] and\
-                               [diagonalSkeletonEndPoint[1,:] <= geodesicDistanceArraySize[1]]
+                               [diagonalSkeletonEndPoint[0,:] < geodesicDistanceArraySize[0]] and\
+                               [diagonalSkeletonEndPoint[1,:] < geodesicDistanceArraySize[1]] and\
+                               [diagonalSkeletonEndPoint[0,:] != geodesicDistanceArraySize[0]] and\
+                               [diagonalSkeletonEndPoint[1,:] != geodesicDistanceArraySize[1]]
+        
         allAllowedIndex = [neighborPixelSkeletonEndPointList[0,:] > 0] and\
-                          [neighborPixelSkeletonEndPointList[1,:] > 0] and\
-                    [neighborPixelSkeletonEndPointList[0,:] <= geodesicDistanceArraySize[0]] and\
-                    [neighborPixelSkeletonEndPointList[1,:] <= geodesicDistanceArraySize[1]]
+                          [neighborPixelSkeletonEndPointList[0,:] != 0] and\
+                    [neighborPixelSkeletonEndPointList[0,:] < geodesicDistanceArraySize[0]] and\
+                    [neighborPixelSkeletonEndPointList[1,:] < geodesicDistanceArraySize[1]] and\
+                    [neighborPixelSkeletonEndPointList[0,:] != geodesicDistanceArraySize[0]] and\
+                    [neighborPixelSkeletonEndPointList[1,:] != geodesicDistanceArraySize[1]]
         
         #print cardinalAllowedIndex[0]
         #print diagonalAllowedIndex[0]
@@ -698,14 +759,20 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         tfCarray = np.array([cardinalAllowedIndex[0],cardinalAllowedIndex[0]])
         tfCarrayMask = np.zeros((tfCarray.shape))
         tfCarrayMask[tfCarray==False]=1
+        popinfC = np.where(tfCarray[0,:]==False)
+        #print popinfC
         
         tfDarray = np.array([diagonalAllowedIndex[0],diagonalAllowedIndex[0]])
         tfDarrayMask = np.zeros((tfDarray.shape))
         tfDarrayMask[tfDarray==False]=1
+        popinfD = np.where(tfDarray[0,:]==False)
+        #print popinfD
         
         tfAarray = np.array([allAllowedIndex[0],allAllowedIndex[0]])
         tfAarrayMask = np.zeros((tfAarray.shape))
         tfAarrayMask[tfAarray==False]=1
+        popinfA = np.where(tfAarray[0,:]==False)
+        #print popinfA
         
         # Now remove the false indices from our neighborhood matrix
         # Now arrange the arrays above
@@ -716,18 +783,83 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         neighborPixelSkeletonEndPointListAllowed=npma.masked_array(neighborPixelSkeletonEndPointList,\
                                                             mask=tfAarrayMask)
 
+        rw1 = neighborPixelSkeletonEndPointListAllowed[0,:]
+        rw2 = neighborPixelSkeletonEndPointListAllowed[1,:]
+        rw3 = cardinalSkeletonEndPointAllowed[0,:]
+        rw4 = cardinalSkeletonEndPointAllowed[1,:]
+        rw5 = diagonalSkeletonEndPointAllowed[0,:]
+        rw6 = diagonalSkeletonEndPointAllowed[1,:]
+        #print rw1,rw2,rw3,rw4,rw5,rw6
+        #print rw1[~rw1.mask]
+        #print rw2[~rw2.mask]
+        #print rw3[~rw3.mask]
+        #print rw4[~rw4.mask]
+        #print rw5[~rw5.mask]
+        #print rw6[~rw6.mask]
+        #print neighborPixelSkeletonEndPointListAllowed.mask
         # Get the minimum value of geodesic distance in the 8 cell neighbor
         # Get the values of D(I) and adjust values for diagonal elements
-        allGeodesicDistanceList = np.array(geodesicDistanceArray[\
-                neighborPixelSkeletonEndPointListAllowed[0,:],\
-                neighborPixelSkeletonEndPointListAllowed[1,:]])
-        cardinalPixelGeodesicDistanceList = np.array(geodesicDistanceArray[\
-                cardinalSkeletonEndPointAllowed[0,:],\
-                cardinalSkeletonEndPointAllowed[1,:]])
-        diagonalPixelGeodesicDistanceList= np.array(geodesicDistanceArray[\
-                diagonalSkeletonEndPointAllowed[0,:],\
-                diagonalSkeletonEndPointAllowed[1,:]])
+        try:
+            allGeodesicDistanceList = np.array(geodesicDistanceArray[rw1[~rw1.mask],\
+                rw2[~rw2.mask]])
+        except:
+            print neighborPixelSkeletonEndPointList
+            print allAllowedIndex
+            print allGeodesicDistanceList
+            print popinfC
+            print popinfD
+            print popinfA
+            print rw1,rw2,rw3,rw4,rw5,rw6
+            print rw1[~rw1.mask]
+            print rw2[~rw2.mask]
+        # new line   
+        cardinalPixelGeodesicDistanceList = np.array(geodesicDistanceArray[rw3[~rw3.mask],\
+                rw4[~rw4.mask]])
+        diagonalPixelGeodesicDistanceList= np.array(geodesicDistanceArray[rw5[~rw5.mask],\
+                rw6[~rw6.mask]])
+        #print allGeodesicDistanceList
+        #print cardinalPixelGeodesicDistanceList
+        #print diagonalPixelGeodesicDistanceList
+        # We have to insert np.nan values for masked values
+        allFinal = np.zeros((1,8))
+        #print popinfA
+        allFinal[0,popinfA[0]]= np.nan
+        aF = 0
+        cardinalFinal = np.zeros((1,4))
+        #print popinfC
+        cardinalFinal[0,popinfC[0]]= np.nan
+        cF = 0
+        diagonalFinal = np.zeros((1,4))
+        #print popinfD
+        diagonalFinal[0,popinfD[0]] = np.nan
+        dF = 0
 
+        #print allFinal,cardinalFinal,diagonalFinal
+        for aFi in xrange(0,8):
+            if ~np.isnan(allFinal[0,aFi]):
+                allFinal[0,aFi] = allGeodesicDistanceList[aF]
+                aF = aF+1
+        #--------
+        for cFi in xrange(0,4):
+            if ~np.isnan(cardinalFinal[0,cFi]):
+                cardinalFinal[0,cFi] = cardinalPixelGeodesicDistanceList[cF]
+                cF = cF+1
+        #--------
+        for dFi in xrange(0,4):
+            if ~np.isnan(diagonalFinal[0,dFi]):
+                diagonalFinal[0,dFi] = diagonalPixelGeodesicDistanceList[dF]
+                dF = dF+1
+        #--------
+        del allGeodesicDistanceList,  cardinalPixelGeodesicDistanceList,\
+            diagonalPixelGeodesicDistanceList
+
+        allGeodesicDistanceList = allFinal
+        cardinalPixelGeodesicDistanceList = cardinalFinal
+        diagonalPixelGeodesicDistanceList = diagonalFinal
+        #print allGeodesicDistanceList
+        #print cardinalPixelGeodesicDistanceList
+        #print diagonalPixelGeodesicDistanceList
+        #stop
         # for cells in horizontal and vertical positions to the
         # current cell
         cardinalPixelGeodesicDistanceList = channelHeadGeodesicDistance - \
@@ -736,12 +868,10 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         diagonalPixelGeodesicDistanceList = (channelHeadGeodesicDistance - \
                                             diagonalPixelGeodesicDistanceList)/np.sqrt(2)
 
-        #print 'cardinalPixelGeodesicDistanceList',cardinalPixelGeodesicDistanceList
-        #print 'diagonalPixelGeodesicDistanceList',diagonalPixelGeodesicDistanceList
-
         neighborPixelGeodesicDistanceList = np.array([cardinalPixelGeodesicDistanceList,\
                                              diagonalPixelGeodesicDistanceList])
-
+        
+        #print neighborPixelGeodesicDistanceList
         # get the index of the maximum geodesic array
         chosenGeodesicIndex = np.argmax(neighborPixelGeodesicDistanceList)
         #print 'chosenGeodesicIndex',chosenGeodesicIndex
@@ -784,11 +914,9 @@ def write_channel_heads(xx,yy):
     
     # Project the xx, and yy points
     xxProj = float(gtf[0])+ \
-                    float(gtf[1]) * np.array(xx) + \
-                    float(0.00964)
+                    float(gtf[1]) * np.array(xx)
     yyProj = float(gtf[3])+ \
-                    float(gtf[5])*np.array(yy) + \
-                    float(0.00155)
+                    float(gtf[5])*np.array(yy)
     
     
     # create the layer
@@ -836,15 +964,16 @@ def write_channel_heads(xx,yy):
 #---------------------------------------------------------------------------------
 
 def main():
-    #print "Using cython code:",say_hello_to('Harish')
     print "current working directory", os.getcwd()
     print "Reading input file path :",Parameters.demDataFilePath
     print "Reading input file :",Parameters.demFileName
     defaults.figureNumber = 0
 
-    rawDemArray = read_dem_from_geotiff(Parameters.demFileName,Parameters.demDataFilePath)
+    rawDemArray = read_dem_from_geotiff(Parameters.demFileName,\
+                                        Parameters.demDataFilePath)
 
-    nanDemArray=np.array(rawDemArray.T)
+    nanDemArraylr=np.array(rawDemArray)
+    nanDemArray = nanDemArraylr
     nanDemArray[nanDemArray < defaults.demNanFlag]= np.nan
     Parameters.minDemValue= np.min(nanDemArray[:])
     Parameters.maxDemValue= np.max(nanDemArray[:])
@@ -855,7 +984,8 @@ def main():
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('Input DEM')
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
 
     # Area of analysis
     Parameters.xDemSize=np.size(nanDemArray,0)
@@ -884,7 +1014,8 @@ def main():
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('Slope of unfiltered DEM')
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
 
     # Computation of the threshold lambda used in Perona-Malik nonlinear
     # filtering. The value of lambda (=edgeThresholdValue) is given by the 90th
@@ -911,8 +1042,8 @@ def main():
 
     # performing Perona-Malik filtering
     print 'Performing Perona-Malik nonlinear filtering'
-    filteredDemArray=nanDemArray;
-    filteredDemArray = geonet_diffusion (filteredDemArray,\
+    #filteredDemArray=nanDemArray
+    filteredDemArray = geonet_diffusion (nanDemArray,\
     defaults.diffusionMethod,\
     defaults.nFilterIterations, edgeThresholdValuescipy,\
     defaults.diffusionTimeIncrement,\
@@ -925,12 +1056,15 @@ def main():
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('Filtered DEM')
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
 
     # Writing the filtered DEM as a tif
     write_geotif_filteredDEM(filteredDemArray,Parameters.demDataFilePath,\
                              Parameters.demFileName)
 
+    #stop
+    #filteredDemArray[filteredDemArray == -3.402823e+038]=np.nan
     # Computing slope of filtered DEM
     print 'Computing slope of filtered DTM'
     filteredDemArraynp = np.array(filteredDemArray)#np.gradient only takes an array as input
@@ -945,8 +1079,8 @@ def main():
     slopeMagnitudeDemArrayQ = np.reshape(slopeMagnitudeDemArrayQ,\
                                          np.size(slopeMagnitudeDemArrayQ))
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayQ[~np.isnan(slopeMagnitudeDemArrayQ)]
-    print ' angle min:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.001))*180/np.pi
-    print ' angle max:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.999))*180/np.pi
+    #print ' angle min:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.001))*180/np.pi
+    #print ' angle max:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.999))*180/np.pi
 
     #Computing curvature
     print 'computing curvature'
@@ -984,6 +1118,7 @@ def main():
     # have to add method to automatically compute the thresold
     # .....
     # .....
+    
    
 
     # Computing contributing areas
@@ -1005,7 +1140,9 @@ def main():
     # is large, then you might have as nulls, so best
     # practice is to keep the basin threshold close to 1000
     # default value is 10,000
-    subBasinIndexArray = flowroutingresults['basins']
+    #subBasinIndexArray = flowroutingresults['basins']
+
+    
     #subBasinIndexArray[subBasinIndexArray==-9999]=np.nan
     basinIndexArray = flowroutingresults['bigbasins']
 
@@ -1021,51 +1158,54 @@ def main():
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('flowArray with outlets')
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
     
     # plotting only for testing purposes
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(basinIndexArray,cmap=cm.Dark2)
+    plt.imshow(basinIndexArray.T,cmap=cm.Dark2)
     plt.plot(outletPointsList[0],outletPointsList[1],'go')
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('basinIndexArray with outlets')
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
 
 
     # Define a skeleton based on flow alone
     skeletonFromFlowArray = \
-    compute_skeleton_by_single_threshold(flowArray,\
+    compute_skeleton_by_single_threshold(flowArray.T,\
         defaults.flowThresholdForSkeleton)
     
     # Define a skeleton based on curvature alone
     skeletonFromCurvatureArray =\
-    compute_skeleton_by_single_threshold(curvatureDemArray,\
+    compute_skeleton_by_single_threshold(curvatureDemArray.T,\
         curvatureDemMean+thresholdCurvatureQQxx*curvatureDemStdDevn)
     
     
     # Define a skeleton based on curvature and flow
     skeletonFromFlowAndCurvatureArray =\
-    compute_skeleton_by_dual_threshold(curvatureDemArray, flowArray, \
+    compute_skeleton_by_dual_threshold(curvatureDemArray.T, flowArray.T, \
         curvatureDemMean+thresholdCurvatureQQxx*curvatureDemStdDevn, \
         defaults.flowThresholdForSkeleton)
 
     # plotting only for testing purposes
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(skeletonFromFlowAndCurvatureArray,cmap=cm.binary)
+    plt.imshow(skeletonFromFlowAndCurvatureArray.T,cmap=cm.binary)
     plt.plot(outletPointsList[0],outletPointsList[1],'go')
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('skeleton with outlets')
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
 
     # Writing the skeletonFromFlowAndCurvatureArray array
     outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
     outfilename = Parameters.demFileName
     outfilename = outfilename.split('.')[0]+'_skeleton.tif'
-    write_geotif_generic(skeletonFromFlowAndCurvatureArray,\
+    write_geotif_generic(skeletonFromFlowAndCurvatureArray.T,\
                          outfilepath,outfilename)
 
     
@@ -1088,6 +1228,11 @@ def main():
     # Calculate the local reciprocal cost (weight, or propagation speed in the
     # eikonal equation sense).  If the cost function isn't defined, default to
     # old cost function.
+    flowArray = flowArray.T
+    curvatureDemArray = curvatureDemArray.T
+    print flowArray.shape
+    print skeletonFromFlowAndCurvatureArray.shape
+    print curvatureDemArray.shape
     if hasattr(defaults, 'reciprocalLocalCostFn'):
         reciprocalLocalCostArray = eval(defaults.reciprocalLocalCostFn)
     else:
@@ -1162,10 +1307,11 @@ def main():
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
     #plt.imshow(np.log10(geodesciDistanceArray),cmap=cm.coolwarm)
-    plt.contour(np.log10(geodesicDistanceArray.T),140,cmap=cm.coolwarm)
+    plt.contour(np.log10(np.flipud(geodesicDistanceArray.T)),140,cmap=cm.coolwarm)
     plt.title('Geodesic distance array (travel time)')
     plt.colorbar()
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
 
     # Writing the geodesic distance array
     outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
@@ -1206,16 +1352,18 @@ def main():
         for j in range(0,xySkeletonSize[1]):
             #Gets the watershed label for this specified cell and checked in
             #subsequent if statement
-            basinIndex = subBasinIndexArray[i,j]
+            basinIndex = basinIndexArray[i,j]
             if skeletonLabeledArray[i, j] > 0:
-                skeletonNumElementsGriddedArray[i,j] = skeletonNumElementsList[skeletonLabeledArray[i,j]-1]
+                skeletonNumElementsGriddedArray[i,j] = \
+                    skeletonNumElementsList[skeletonLabeledArray[i,j]-1]
     
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(skeletonNumElementsGriddedArray,cmap=cm.coolwarm)
+    plt.imshow(skeletonNumElementsGriddedArray.T,cmap=cm.coolwarm)
     plt.title('Skeleton Num elements Array')
     plt.colorbar()
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
     
     #"""
     # Elements smaller than skeletonNumElementsThreshold are not considered in the
@@ -1264,46 +1412,64 @@ def main():
     
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(skeletonFromFlowAndCurvatureArray,cmap=cm.binary)
-    plt.plot(yy,xx,'or')
+    plt.imshow(skeletonFromFlowAndCurvatureArray.T,cmap=cm.binary)
+    plt.plot(xx,yy,'or')
     plt.title('Skeleton Num elements Array with channel heads')
     plt.colorbar()
-    plt.show()             
-            
+    if defaults.doPlot==1:
+        plt.show()             
+
+    defaults.figureNumber = defaults.figureNumber + 1
+    plt.figure(defaults.figureNumber)
+    plt.imshow(geodesicDistanceArray,cmap=cm.coolwarm)
+    plt.plot(xx,yy,'or')
+    plt.title('Geodesic distance Array with channel heads')
+    plt.colorbar()
+    if defaults.doPlot==0:
+        plt.show()             
+           
     #"""
     # Do compute discrete geodesics
     print 'Computing discrete geodesics'
     geodesicPathsCellList = []
     numberOfEndPoints = len(xx)
+    outerbounds = geodesicDistanceArray.shape
     for i in range(0,numberOfEndPoints):
-        print 'EndPoint# ',i
+        print 'EndPoint# ',i,'/',numberOfEndPoints
         xEndPoint = xx[i]
         yEndPoint = yy[i]
-        skeletonEndPoint = np.array([[xEndPoint],[yEndPoint]]) 
-        watershedLabel = basinIndexArray[xEndPoint,yEndPoint]
-        print 'watershedLabel',watershedLabel
-        watershedIndexList = basinIndexArray == watershedLabel
-        geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
-        geodesicDistanceArrayMask[watershedIndexList]= geodesicDistanceArray[watershedIndexList]
-        geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
-        geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
+        if xEndPoint > 0 and xEndPoint < outerbounds[0] and \
+           yEndPoint > 0 and yEndPoint < outerbounds[1]:
+            skeletonEndPoint = np.array([[xEndPoint],[yEndPoint]]) 
+            watershedLabel = basinIndexArray[xEndPoint,yEndPoint]
+            print 'watershedLabel',watershedLabel
+            watershedIndexList = basinIndexArray == watershedLabel
+            geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
+            geodesicDistanceArrayMask[watershedIndexList]= geodesicDistanceArray[watershedIndexList]
+            geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
+            print geodesicDistanceArrayMask.shape
+            if i == 278:
+                geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
                                     skeletonEndPoint,defaults.doTrueGradientDescent))
     #
-    print 'geodesicPathsCellList',geodesicPathsCellList
+    #print 'geodesicPathsCellList',geodesicPathsCellList
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(geodesicDistanceArray,cmap=cm.coolwarm)
+    plt.imshow(geodesicDistanceArray.T,cmap=cm.coolwarm)
     for pp in range(0,len(geodesicPathsCellList)):
-        plt.plot(geodesicPathsCellList[pp][1,:],geodesicPathsCellList[pp][0,:],'-r')
-    plt.plot(yy,xx,'og')
+        plt.plot(geodesicPathsCellList[pp][0,:],geodesicPathsCellList[pp][1,:],'-r')
+    plt.plot(xx,yy,'og')
     plt.title('Geodesic Array with channel heads and streams')
     plt.colorbar()
-    plt.show()
+    if defaults.doPlot==1:
+        plt.show()
     
     # Write shapefiles of channel heads
     write_channel_heads(xx,yy)
+    plt.show()
 
     # Write stream network as shapefiles
+    
     
 
     

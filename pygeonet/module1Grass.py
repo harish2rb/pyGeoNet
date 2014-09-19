@@ -15,7 +15,7 @@ sys.path.append(os.path.join(os.environ['GISBASE'], "etc", "python"))
 import grass.script as g
 import grass.script.setup as gsetup
 
-from grass.script import array as garray
+import grass.script.array as garray
 
 from osgeo import gdal,osr
 import matplotlib.pyplot as plt
@@ -27,19 +27,27 @@ gisbase = os.environ['GISBASE']
 gisdbdir = 'C:\\Users\\Harish\\Documents\\grassdata'
 locationGeonet = 'geonet'
 mapsetGeonet = 'geonetuser'
-geotiff = 'c:\\Mystuff\\grassgisdatabase\\PM_filtered_grassgis.tif'
+geotiff = 'C:\\Users\\Harish\\Documents\\GitHub\\pyGeoNet\\data\\ikawa_lidardem_z54_masked.tif'
 print geotiff
 ds = gdal.Open(geotiff, gdal.GA_ReadOnly)
 geotransform = ds.GetGeoTransform()
 prj_wkt = ds.GetProjection()
 srs=osr.SpatialReference(wkt=prj_wkt)
+print prj_wkt
+
 if srs.IsProjected:
     print srs.GetAttrValue('EPSG')
     print srs.GetAttrValue('geogcs')
 
 #print ds.GetSpatialRef()
 
-print prj_wkt
+geotiffPM = 'C:\\Mystuff\\grassgisdatabase\\PM_filtered_grassgis.tif'
+print geotiffPM
+dsPM = gdal.Open(geotiffPM, gdal.GA_ReadOnly)
+print dsPM.GetProjection()
+print dsPM.GetMetadata()
+
+stop
 
 #stop
 print 'Making the geonet location'
@@ -78,18 +86,18 @@ print g.run_command('r.in.gdal', input=geotiff, output='dem_2012_mission_v1', \
 ###****************************region adjustment***********************************
 ### We create a temporary region that is only valid in this python session
 #g.use_temp_region()
-rows = 1423#7739#DEM_arr.shape[0]
-cols = 1429#8356#DEM_arr.shape[1]
-resolution = 1
-print rows,cols
-n = 4399029.000000002#5175067.02134887 #some arbitrary value
-s = 4397606.000000002#5167328.02134887
-e = 445876.99999999907#557587.86925264  #some arbitrary value
-w = 444447.99999999907#549231.86925264
-print "g.region command"
-print g.run_command('g.region', flags = 'p', \
-              n = n ,s = s, e = e, w = w,\
-              res = resolution, rows = rows ,cols = cols)
+#rows = 1423#7739#DEM_arr.shape[0]
+#cols = 1429#8356#DEM_arr.shape[1]
+#resolution = 1
+#print rows,cols
+#n = 4399029.000000002#5175067.02134887 #some arbitrary value
+#s = 4397606.000000002#5167328.02134887
+#e = 445876.99999999907#557587.86925264  #some arbitrary value
+#w = 444447.99999999907#549231.86925264
+#print "g.region command"
+#print g.run_command('g.region', flags = 'p', \
+#              n = n ,s = s, e = e, w = w,\
+#              res = resolution, rows = rows ,cols = cols)
 
 #Flow computation for massive grids (float version)
 print "r.watershed command"
@@ -97,6 +105,7 @@ print g.run_command('r.watershed',overwrite=True,\
         elevation='dem_2012_mission_v1',\
         threshold=1000, accumulation='acc_v23',basin = 'bas1v23',\
         drainage = 'dra1v23')
+print g.read_command('g.list', _type = 'rast')
 
 oneoutletbasin = 'C:\Mystuff\grassgisdatabase\basin_out23.tif' 
 print "r.water.outlet"
@@ -104,6 +113,17 @@ print "r.water.outlet"
 print g.run_command('r.water.outlet',overwrite=True,\
                     input = 'dra1v23', output= 'oneoutletbasin',\
                     coordinates=[444470.550695,4397299.50548])
+
+
+
+# read map
+a = garray.array()
+a.read(acc_v23)
+
+print a
+
+print g.raster_info(acc_v23)['datatype']
+stop
 
 print g.run_command('r.out.gdal',overwrite=True,\
         input = "oneoutletbasin",type='Float32', \

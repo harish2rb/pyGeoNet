@@ -1,8 +1,8 @@
 import os
 # Prepare GeoNet parameters just prior to main code execution
 currentWorkingDir = os.getcwd()
-geoNetHomeDir = "C:\\Users\\Harish\\Dropbox\\pyGeoNet1.0"
-demDataFilePath =  geoNetHomeDir +"\\data\\"
+geoNetHomeDir = "C:\\Mystuff\\IO_Data\\"
+demDataFilePath =  geoNetHomeDir +"data\\"
 demFileName = "skunkroi.tif"
 
 print demDataFilePath
@@ -13,3 +13,5 @@ shapefilepath = "C:\\Users\\Harish\\Documents\\GitHub\\pyGeoNet\\test_results\\"
 shapefileName = demFileName.split(".")[0]+"_channelHeads"
 FileName = shapefilepath +shapefileName+".shp"
 driverName = "ESRI Shapefile"
+
+

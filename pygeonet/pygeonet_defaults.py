@@ -1,9 +1,24 @@
 ## Set default parameters for GeoNet
 
+# Deleting geonet grass location
+import shutil
+import os
+
+print "Cleaning existing Grass location"
+grassGISlocation = 'C:\\Users\\Harish\\Documents\\grassdata\\geonet'
+if os.path.exists(grassGISlocation):
+    shutil.rmtree(grassGISlocation)
+
+print "Cleaning basinTiffs"
+dirpath = "C:\\Mystuff\\grassgisdatabase\\basinTiffs"
+shutil.rmtree(dirpath)
+print "Making basinTiffs"
+os.mkdir(dirpath)
+
 # Reporting, plotting and file handling
 doFileOutput=1
 doReport=1
-doPlot=1
+doPlot=0
 doResetFiguresOnStart=1
 
 # **** Default is to output GeoNet results into the same folder as this
@@ -18,7 +33,7 @@ diffusionMethod='PeronaMalik2'
 # ... could be:  PeronaMalik1, PeronaMalik2, Tukey, rampPreserving
 diffusionTimeIncrement=0.1
 diffusionSigmaSquared=0.05
-nFilterIterations=10 # Nonlinear filtering iterations
+nFilterIterations=3 # Nonlinear filtering iterations
 
 # Flow routing options and sub basin indexing
 yxPixelSizeRatio=1.0
@@ -27,7 +42,7 @@ doRandomizeFlowDirections=1
 flowRandomizeJitterAmplitude=0.15
 doSubBasinFastMarchingFlag=0
 plotOrderThreshold=7
-thresholdAreaSubBasinIndexing=100000
+thresholdAreaSubBasinIndexing=1000
 
 # Define the cost function
 # areaArray=D8 accumulation area
@@ -48,8 +63,8 @@ reciprocalLocalCostMinimum='nan'
 
 # What proportion of the DEM should we track drainage?
 thresholdPercentAreaForDelineation=0
-demNanFlag=-9999
-demErrorFlag=-9999
+demNanFlag=-3.402823e+038
+demErrorFlag=-3.402823e+038
 
 # The demSmoothingQuantile is the quantile of landscape we want to smooth and
 # (1-demSmoothingQuantile) is the quantile of landscape we want to enhance.

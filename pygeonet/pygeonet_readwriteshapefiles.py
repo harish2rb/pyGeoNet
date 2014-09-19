@@ -14,6 +14,8 @@ shapefileName = "volcanoes"
 FileName = shapefilepath +shapefileName+".shp"
 driverName = "ESRI Shapefile"
 
+networkName = shapefilepath + "channelNetwork.shp"
+
 # Used to get the spatial reference
 skeltif = 'C:\\Mystuff\\grassgisdatabase\\'+'skunkroi_skeleton.tif'
 dsskel = gdal.Open(skeltif, gdal.GA_ReadOnly)
@@ -23,7 +25,7 @@ gtf = dsskel.GetGeoTransform()
 aryskel = dsskel.GetRasterBand(1).ReadAsArray()
 nanDemArrayskel=np.array(aryskel.T)
 #--------------
-
+"""
 # --- create the channel heads demo---
 geoDtif = 'C:\\Mystuff\\grassgisdatabase\\'+'skunkroi_geodesicDistance.tif'
 dsgeoD = gdal.Open(geoDtif, gdal.GA_ReadOnly)
@@ -52,7 +54,7 @@ histarray,bin_edges=np.histogram(\
 print bin_edges[1]
 xySkeletonSize = skeletonLabeledArray.shape
 skeletonNumElementsGriddedArray = np.zeros(xySkeletonSize)
-#"""
+
 for i in range(1,xySkeletonSize[0]):
     for j in range(1,xySkeletonSize[1]):
         #Gets the watershed label for this specified cell and checked in
@@ -97,14 +99,14 @@ for i in range(0,xySkeletonSize[0]):
             v1 = v * searchGeodesicDistanceBox > nanDemArraygeoD[i,j]
             #v2 = nanDemArraygeoD[i,j] > v1
             v3 = np.where(np.any(v1==True,axis=0))
-            """
+            
             if i > 200 and j >200:
                 print v
                 print v1
                 print v3
                 print len(v3[0])
                 stop
-            #"""
+            
             #print v3
             if len(v3[0])==0:
                 #print i,j
@@ -184,3 +186,65 @@ for i in xrange(0,len(xxProj)):
 
 # Destroy the data source to free resources
 data_source.Destroy()
+
+"""
+
+# creating line shapefile
+linePoints = np.array([[1427, 1426, 1425, 1424, 1424, 1424, 1424, 1425, 1425, 1425, 1424,
+        1424, 1424],
+       [ 627,  627,  628,  629,  630,  631,  632,  633,  634,  635,  636,
+         637,  638]])
+
+# set up the shapefile driver
+driver = ogr.GetDriverByName(driverName)
+
+# This will delete and assist in overwrite the original shape files
+if os.path.exists(networkName):
+     driver.DeleteDataSource(networkName)
+
+# create the data source
+data_source = driver.CreateDataSource(networkName)
+
+# create the spatial reference, WGS84
+srs = osr.SpatialReference()
+#srs.ImportFromEPSG(4326)
+srs.ImportFromWkt(georef)
+
+# create the layer
+layer = data_source.CreateLayer(shapefileName, srs, ogr.wkbLineString)
+
+# Add the fields we're interested in
+field_name = ogr.FieldDefn("Name", ogr.OFTString)
+field_name.SetWidth(24)
+layer.CreateField(field_name)
+field_region = ogr.FieldDefn("Region", ogr.OFTString)
+field_region.SetWidth(24)
+layer.CreateField(field_region)
+layer.CreateField(ogr.FieldDefn("Latitude", ogr.OFTReal))
+layer.CreateField(ogr.FieldDefn("Longitude", ogr.OFTReal))
+
+# Now add the channel heads as features to the layer
+for i in xrange(0,len(linePoints)):
+    # create the feature
+    feature = ogr.Feature(layer.GetLayerDefn())
+    # Set the attributes using the values
+    feature.SetField("Name", 'Head')
+    feature.SetField("Region", 'Skunk')
+    # create the WKT for the feature using Python string formatting
+    line = ogr.Geometry(ogr.wkbLineString)
+    print linePoints[0][i],linePoints[1][i]
+    line.AddPoint(linePoints[0][i],linePoints[1][i])
+    # Create the point from the Well Known Txt
+    lineobject = line.ExportToWkt()
+    # Set the feature geometry using the point
+    feature.SetGeometry(lineobject)
+    # Create the feature in the layer (shapefile)
+    layer.CreateFeature(feature)
+    # Destroy the feature to free resources
+    feature.Destroy()
+
+
+# Destroy the data source to free resources
+data_source.Destroy()
+
+
