@@ -172,7 +172,7 @@ def simple_gaussian_smoothing(inputDemArray,kernelWidth,diffusionSigmaSquared):
     y=x.T
     gaussianFilter = np.exp(-(x**2+y**2)/(2*diffusionSigmaSquared))  # 2D Gaussian
     #print "gaussianFilter", gaussianFilter
-    gaussianFilter=gaussianFilter/sum(sum(gaussianFilter))      # Normalize
+    gaussianFilter=gaussianFilter/sum(sum(gaussianFilter)) # Normalize
     #print inputDemArray[:,0:halfKernelWidth]
     xL= np.mean(inputDemArray[:,0:halfKernelWidth],axis=1)
     xL = np.matrix(xL)
@@ -280,16 +280,24 @@ def geonet_diffusion(demArray, diffusionMethod, nFilterIterations,\
 def compute_dem_curvature(demArray,pixelDemScale,curvatureCalcMethod):
     print 'computing DTM curvature'
     gradXArray,gradYArray = np.gradient(demArray,pixelDemScale)
-    slopeArray = np.sqrt(gradXArray**2 + gradYArray**2)
+    slopeArrayT = np.sqrt(gradXArray**2 + gradYArray**2)
     if curvatureCalcMethod=='geometric':
         #Geometric curvature
-        gradXArray = gradXArray/slopeArray
-        gradYArray = gradYArray/slopeArray
-        gradXArray[slopeArray==0.0]=0.0
-        gradYArray[slopeArray==0.0]=0.0
-    gradGradXArray,tmpy = np.gradient(gradXArray,pixelDemScale)
-    tmpX,gradGradYArray = np.gradient(gradYArray,pixelDemScale)
+        print 'using geometric curvature'
+        gradXArrayT = gradXArray/slopeArrayT
+        gradYArrayT = gradYArray/slopeArrayT
+        gradXArrayT[slopeArrayT==0.0]=0.0
+        gradYArrayT[slopeArrayT==0.0]=0.0
+    elif curvatureCalcMethod=='laplacian':
+        # do nothing..
+        print 'using laplacian curvature'
+        gradXArrayT = gradXArray
+        gradYArrayT = gradYArray
+    
+    gradGradXArray,tmpy = np.gradient(gradXArrayT,pixelDemScale)
+    tmpX,gradGradYArray = np.gradient(gradYArrayT,pixelDemScale)
     curvatureDemArray = gradGradXArray + gradGradYArray
+    del tmpy, tmpX
     return curvatureDemArray
 
 def compute_quantile_quantile_curve(x):
@@ -670,16 +678,16 @@ def compute_skeleton_by_single_threshold(inputArray, threshold):
 # Skeleton by thresholding two grid measures e.g. flow and curvature
 def compute_skeleton_by_dual_threshold(inputArray1, inputArray2, threshold1, threshold2):
     skeletonArray = np.zeros((inputArray1.shape))
-    #skeletonArray = skeletonArray.T
-    mask = np.where((inputArray1> threshold1) & (inputArray2>threshold2))
-    skeletonArray[mask] = 1
+    mask1 = np.where(inputArray1> threshold1,1,False)
+    mask2 = np.where(inputArray2>threshold2,1,False)
+    skeletonArray= mask1*mask2
     return skeletonArray
 
 # Normalize curvature
 def normalize(inputArray):
-    normalizedArray = inputArray- np.min(inputArray[:])
-    normalizedArray = normalizedArray/ np.max(normalizedArray[:])
-    return normalizedArray
+    normalizedArray = inputArray- np.min(inputArray[~np.isnan(inputArray)])
+    normalizedArrayR = normalizedArray/ np.max(normalizedArray[~np.isnan(normalizedArray)])
+    return normalizedArrayR
 
 # Compute discrete geodesics
 def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradientDescent ):
@@ -701,7 +709,7 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
     #print 'channelHeadGeodesicDistance',channelHeadGeodesicDistance
     # Get the size of the geodesic distance
     geodesicDistanceArraySize = geodesicDistanceArray.shape
-    print geodesicDistanceArraySize
+    #print geodesicDistanceArraySize
     # While we find a geodesic distance less then previous value
     while True:
         cardinalDxMoves = [1, -1, 0, 0]
@@ -729,26 +737,23 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         r6 = neighborPixelSkeletonEndPointList.tolist()[1]
 
         # Get the indices which are not on boundary
-        cardinalAllowedIndex = [cardinalSkeletonEndPoint[0,:] > 0] and\
-                               [cardinalSkeletonEndPoint[1,:] > 0] and\
-                               [cardinalSkeletonEndPoint[0,:] < geodesicDistanceArraySize[0]] and\
-                               [cardinalSkeletonEndPoint[1,:] < geodesicDistanceArraySize[1]] and\
-                               [cardinalSkeletonEndPoint[0,:] != geodesicDistanceArraySize[0]] and\
-                               [cardinalSkeletonEndPoint[1,:] != geodesicDistanceArraySize[1]]
-                               
-        diagonalAllowedIndex = [diagonalSkeletonEndPoint[0,:] > 0] and \
-                               [diagonalSkeletonEndPoint[1,:] > 0] and\
-                               [diagonalSkeletonEndPoint[0,:] < geodesicDistanceArraySize[0]] and\
-                               [diagonalSkeletonEndPoint[1,:] < geodesicDistanceArraySize[1]] and\
-                               [diagonalSkeletonEndPoint[0,:] != geodesicDistanceArraySize[0]] and\
-                               [diagonalSkeletonEndPoint[1,:] != geodesicDistanceArraySize[1]]
+        cardinalAllowedIndex0 = np.array([cardinalSkeletonEndPoint[0,:] > 0] and\
+                               [cardinalSkeletonEndPoint[0,:] < geodesicDistanceArraySize[0]])
+        cardinalAllowedIndex1 = np.array([cardinalSkeletonEndPoint[1,:] > 0] and\
+                               [cardinalSkeletonEndPoint[1,:] < geodesicDistanceArraySize[1]])        
+        cardinalAllowedIndex = cardinalAllowedIndex0 * cardinalAllowedIndex1
         
-        allAllowedIndex = [neighborPixelSkeletonEndPointList[0,:] > 0] and\
-                          [neighborPixelSkeletonEndPointList[0,:] != 0] and\
-                    [neighborPixelSkeletonEndPointList[0,:] < geodesicDistanceArraySize[0]] and\
-                    [neighborPixelSkeletonEndPointList[1,:] < geodesicDistanceArraySize[1]] and\
-                    [neighborPixelSkeletonEndPointList[0,:] != geodesicDistanceArraySize[0]] and\
-                    [neighborPixelSkeletonEndPointList[1,:] != geodesicDistanceArraySize[1]]
+        diagonalAllowedIndex0 = np.array([diagonalSkeletonEndPoint[0,:] > 0] and \
+                               [diagonalSkeletonEndPoint[0,:] < geodesicDistanceArraySize[0]])
+        diagonalAllowedIndex1 = np.array([diagonalSkeletonEndPoint[1,:] > 0] and\
+                               [diagonalSkeletonEndPoint[1,:] < geodesicDistanceArraySize[1]])
+        diagonalAllowedIndex = diagonalAllowedIndex0 * diagonalAllowedIndex1
+        
+        allAllowedIndex0 = np.array([neighborPixelSkeletonEndPointList[0,:] > 0] and\
+                    [neighborPixelSkeletonEndPointList[0,:] < geodesicDistanceArraySize[0]])        
+        allAllowedIndex1= np.array([neighborPixelSkeletonEndPointList[1,:] > 0] and\
+                    [neighborPixelSkeletonEndPointList[1,:] < geodesicDistanceArraySize[1]])
+        allAllowedIndex = allAllowedIndex0 * allAllowedIndex1
         
         #print cardinalAllowedIndex[0]
         #print diagonalAllowedIndex[0]
@@ -789,19 +794,16 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         rw4 = cardinalSkeletonEndPointAllowed[1,:]
         rw5 = diagonalSkeletonEndPointAllowed[0,:]
         rw6 = diagonalSkeletonEndPointAllowed[1,:]
-        #print rw1,rw2,rw3,rw4,rw5,rw6
-        #print rw1[~rw1.mask]
-        #print rw2[~rw2.mask]
-        #print rw3[~rw3.mask]
-        #print rw4[~rw4.mask]
-        #print rw5[~rw5.mask]
-        #print rw6[~rw6.mask]
-        #print neighborPixelSkeletonEndPointListAllowed.mask
         # Get the minimum value of geodesic distance in the 8 cell neighbor
         # Get the values of D(I) and adjust values for diagonal elements
         try:
             allGeodesicDistanceList = np.array(geodesicDistanceArray[rw1[~rw1.mask],\
                 rw2[~rw2.mask]])
+            # new line   
+            cardinalPixelGeodesicDistanceList = np.array(geodesicDistanceArray[rw3[~rw3.mask],\
+                rw4[~rw4.mask]])
+            diagonalPixelGeodesicDistanceList= np.array(geodesicDistanceArray[rw5[~rw5.mask],\
+                rw6[~rw6.mask]])
         except:
             print neighborPixelSkeletonEndPointList
             print allAllowedIndex
@@ -812,11 +814,7 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
             print rw1,rw2,rw3,rw4,rw5,rw6
             print rw1[~rw1.mask]
             print rw2[~rw2.mask]
-        # new line   
-        cardinalPixelGeodesicDistanceList = np.array(geodesicDistanceArray[rw3[~rw3.mask],\
-                rw4[~rw4.mask]])
-        diagonalPixelGeodesicDistanceList= np.array(geodesicDistanceArray[rw5[~rw5.mask],\
-                rw6[~rw6.mask]])
+        
         #print allGeodesicDistanceList
         #print cardinalPixelGeodesicDistanceList
         #print diagonalPixelGeodesicDistanceList
@@ -867,11 +865,15 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         # for cells in the diagonal position to the current cell
         diagonalPixelGeodesicDistanceList = (channelHeadGeodesicDistance - \
                                             diagonalPixelGeodesicDistanceList)/np.sqrt(2)
-
-        neighborPixelGeodesicDistanceList = np.array([cardinalPixelGeodesicDistanceList,\
-                                             diagonalPixelGeodesicDistanceList])
+        tcL = cardinalPixelGeodesicDistanceList.tolist()
+        tdL = diagonalPixelGeodesicDistanceList.tolist()
+        neighborPixelGeodesicDistanceList = np.array(tcL[0]+tdL[0])
         
+        #print type(cardinalPixelGeodesicDistanceList)
+        #print tcL[0] + tdL[0]
+        #print diagonalPixelGeodesicDistanceList
         #print neighborPixelGeodesicDistanceList
+        
         # get the index of the maximum geodesic array
         chosenGeodesicIndex = np.argmax(neighborPixelGeodesicDistanceList)
         #print 'chosenGeodesicIndex',chosenGeodesicIndex
@@ -880,16 +882,26 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
         #print 'neighborPixelSkeletonEndPointList',neighborPixelSkeletonEndPointList
         neighborPixelSkeletonEndPointList = neighborPixelSkeletonEndPointList[:,chosenGeodesicIndex]
         #print neighborPixelSkeletonEndPointList
-        if chosenGeodesicDistanceFromAll > channelHeadGeodesicDistance :
+        #stop
+        if chosenGeodesicDistanceFromAll > channelHeadGeodesicDistance:
+            #print "greater geo distance"
+            #print channelHeadGeodesicDistance
             break
+        elif chosenGeodesicDistanceFromAll == 0:
+            print "equal zzero"
+            break
+        #print 'before assig:',channelHeadGeodesicDistance
         channelHeadGeodesicDistance = chosenGeodesicDistanceFromAll
+        #print 'afetr assig:',channelHeadGeodesicDistance
+        #print channelHeadGeodesicDistance
         # Finally add the value of neighborPixelSkeletonEndPointList
         # to path list
         b = np.array([[neighborPixelSkeletonEndPointList[0]],\
                       [neighborPixelSkeletonEndPointList[1]]])
-        #print 'b',b        
+        #print 'b',b
         streamPathPixelList = np.hstack((streamPathPixelList,b))
-        #print 'streamPathPixelList',streamPathPixelList
+    print 'streamPathPixelList',streamPathPixelList
+    #stop
     return streamPathPixelList
         
 # Writing channel head shapefiles
@@ -1079,14 +1091,14 @@ def main():
     slopeMagnitudeDemArrayQ = np.reshape(slopeMagnitudeDemArrayQ,\
                                          np.size(slopeMagnitudeDemArrayQ))
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayQ[~np.isnan(slopeMagnitudeDemArrayQ)]
-    #print ' angle min:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.001))*180/np.pi
-    #print ' angle max:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.999))*180/np.pi
-
+    print ' angle min:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.001))*180/np.pi
+    print ' angle max:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.999))*180/np.pi
+    
     #Computing curvature
     print 'computing curvature'
-    curvatureDemArray= filteredDemArraynp
-    curvatureDemArray[curvatureDemArray== defaults.demErrorFlag]=np.NaN
-    curvatureDemArray = compute_dem_curvature(curvatureDemArray,\
+    #curvatureDemArray= filteredDemArraynp
+    #curvatureDemArray[curvatureDemArray== defaults.demErrorFlag]=np.NaN
+    curvatureDemArray = compute_dem_curvature(filteredDemArraynp,\
                                               Parameters.demPixelScale,\
                                               defaults.curvatureCalcMethod)
 
@@ -1100,14 +1112,26 @@ def main():
     #Computation of statistics of curvature
     print 'Computing curvature statistics'
     #print curvatureDemArray.shape
-    finiteCurvatureDemList = curvatureDemArray[np.isfinite(curvatureDemArray)]
+    finiteCurvatureDemList = curvatureDemArray[~np.isnan(curvatureDemArray)]
     #print finiteCurvatureDemList.shape
     curvatureDemMean = np.mean(finiteCurvatureDemList)
     curvatureDemStdDevn = np.std(finiteCurvatureDemList)
     print ' mean: ', curvatureDemMean
     print ' standard deviation: ', curvatureDemStdDevn
 
+
+    # plotting only for testing purposes
+    defaults.figureNumber = defaults.figureNumber + 1
+    plt.figure(defaults.figureNumber)
+    plt.imshow(curvatureDemArray,cmap=cm.coolwarm)
+    plt.xlabel('X[m]')
+    plt.ylabel('Y[m]')
+    plt.title('Curvature DEM')
+    plt.colorbar()
+    if defaults.doPlot==1:
+        plt.show()
     
+    stop
     #Compute curvature quantile-quantile curve
     # This seems to take a long time ... is commented for now
     print 'Computing curvature quantile-quantile curve'
@@ -1153,14 +1177,15 @@ def main():
     # plotting only for testing purposes
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(flowArray,cmap=cm.Dark2)
+    plt.imshow(np.log(flowArray),cmap=cm.Dark2)
     plt.plot(outletPointsList[0],outletPointsList[1],'go')
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('flowArray with outlets')
-    if defaults.doPlot==1:
+    plt.colorbar()
+    if defaults.doPlot==0:
         plt.show()
-    
+    stop
     # plotting only for testing purposes
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
@@ -1197,10 +1222,10 @@ def main():
     plt.plot(outletPointsList[0],outletPointsList[1],'go')
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
-    plt.title('skeleton with outlets')
-    if defaults.doPlot==1:
+    plt.title('Curvetaure with outlets')
+    if defaults.doPlot==0:
         plt.show()
-
+    
     # Writing the skeletonFromFlowAndCurvatureArray array
     outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
     outfilename = Parameters.demFileName
@@ -1220,10 +1245,28 @@ def main():
     print 'Preparing to calculate cost function'
     # lets normalize the curvature first
     if defaults.doNormalizeCurvature ==1:
-        curvatureDemArray = normalize(curvatureDemArray)
+        curvatureDemArrayNor = normalize(curvatureDemArray)
+    del curvatureDemArray
+    curvatureDemArray = curvatureDemArrayNor
+    del curvatureDemArrayNor
+    
+    defaults.figureNumber = defaults.figureNumber + 1
+    plt.figure(defaults.figureNumber)
+    plt.figure(defaults.figureNumber)
+    plt.imshow(curvatureDemArray,cmap=cm.coolwarm)
+    plt.title('Curvature after normalization')
+    plt.colorbar()
+    #plt.show()
+    
+    
+    print 'Curvature min: ' ,str(np.min(curvatureDemArray[~np.isnan(curvatureDemArray)])), \
+          ' exp(min): ',str(np.exp(3*np.min(curvatureDemArray[~np.isnan(curvatureDemArray)])))
+    print 'Curvature max: ' ,str(np.max(curvatureDemArray[~np.isnan(curvatureDemArray)])),\
+          ' exp(max): ',str(np.exp(3*np.max(curvatureDemArray[~np.isnan(curvatureDemArray)])))
     
     # set all the nan's to zeros before cost function is computed
     curvatureDemArray[np.isnan(curvatureDemArray)] = 0
+    
     print 'Computing cost function & geodesic distance'
     # Calculate the local reciprocal cost (weight, or propagation speed in the
     # eikonal equation sense).  If the cost function isn't defined, default to
@@ -1231,21 +1274,23 @@ def main():
     flowArray = flowArray.T
     curvatureDemArray = curvatureDemArray.T
     print flowArray.shape
-    print skeletonFromFlowAndCurvatureArray.shape
     print curvatureDemArray.shape
+    print skeletonFromFlowAndCurvatureArray.shape
+    
     if hasattr(defaults, 'reciprocalLocalCostFn'):
         reciprocalLocalCostArray = eval(defaults.reciprocalLocalCostFn)
     else:
-        reciprocalLocalCostArray = 1.0*flowArray + \
+        reciprocalLocalCostArray = flowArray + \
                                    flowMean*skeletonFromFlowAndCurvatureArray\
                                    + flowMean*curvatureDemArray
 
     if hasattr(defaults,'reciprocalLocalCostMinimum'):
-        reciprocalLocalCostArray[reciprocalLocalCostArray[:]\
-                                 <defaults.reciprocalLocalCostMinimum]=1.0
+        if defaults.reciprocalLocalCostMinimum != 'nan':
+            reciprocalLocalCostArray[reciprocalLocalCostArray[:]\
+                                 < defaults.reciprocalLocalCostMinimum]=1.0
     
-    print '1/cost min: ', np.min(reciprocalLocalCostArray[:]) 
-    print '1/cost max: ', np.max(reciprocalLocalCostArray[:])
+    print '1/cost min: ', np.min(reciprocalLocalCostArray[~np.isnan(reciprocalLocalCostArray)]) 
+    print '1/cost max: ', np.max(reciprocalLocalCostArray[~np.isnan(reciprocalLocalCostArray)])
 
     # Writing the reciprocal array
     outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
@@ -1260,6 +1305,17 @@ def main():
     # outlets for it
     basinIndexList = np.unique(basinIndexArray)
     print 'basinIndexList:', str(basinIndexList)
+    print reciprocalLocalCostArray.shape
+    #stop
+    
+    defaults.figureNumber = defaults.figureNumber + 1
+    plt.figure(defaults.figureNumber)
+    plt.figure(defaults.figureNumber)
+    plt.imshow(reciprocalLocalCostArray.T,cmap=cm.coolwarm)
+    plt.title('Reciprocal cost array')
+    plt.colorbar()
+    #plt.show()
+    #stop
 
     # Do fast marching for each sub basin
     geodesicDistanceArray = np.zeros((basinIndexArray.shape))
@@ -1279,7 +1335,7 @@ def main():
         maskedBasinFAC[maskedBasinFAC==0]=np.nan
         # Get the outlet of subbasin
         maskedBasinFAC[np.isnan(maskedBasinFAC)]=0
-        subBasinoutletindices = np.where(maskedBasinFAC==maskedBasinFAC.max())
+        #subBasinoutletindices = np.where(maskedBasinFAC==maskedBasinFAC.max())
         # print subBasinoutletindices
         # outlets locations in projection of the input dataset
         outletsxx = fastMarchingStartPointList[0,i]#subBasinoutletindices[0]
@@ -1292,27 +1348,26 @@ def main():
         speed = phi
         distancearray = skfmm.distance(1/phi, dx=1)
         travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
-        #distancearray[distancearray<0]=np.nan
-        #travelTimearray[travelTimearray==0]=np.nan
+        print travelTimearray.shape
         geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
 
-        #plt.figure(defaults.figureNumber)
-        #plt.imshow(travelTimearray,cmap=cm.coolwarm)
-        #plt.contour(travelTimearray,cmap=cm.coolwarm)
-        #plt.title('basin Index'+str(basinIndexList))
-        #pl.savefig('2d_phi.png')
-        #plt.show()
+        plt.figure(defaults.figureNumber)
+        plt.imshow(travelTimearray.T,cmap=cm.coolwarm)
+        #plt.contour(travelTimearray.T,cmap=cm.coolwarm)
+        plt.title('basin Index'+str(basinIndexList))
+        plt.show()
 
     # Plot the geodesic array
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
     #plt.imshow(np.log10(geodesciDistanceArray),cmap=cm.coolwarm)
-    plt.contour(np.log10(np.flipud(geodesicDistanceArray.T)),140,cmap=cm.coolwarm)
+    plt.contour(geodesicDistanceArray.T,140,cmap=cm.coolwarm)
     plt.title('Geodesic distance array (travel time)')
     plt.colorbar()
-    if defaults.doPlot==1:
+    if defaults.doPlot==0:
         plt.show()
-
+    
+    print geodesicDistanceArray.shape
     # Writing the geodesic distance array
     outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
     outfilename = Parameters.demFileName
@@ -1421,11 +1476,11 @@ def main():
 
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(geodesicDistanceArray,cmap=cm.coolwarm)
+    plt.imshow(np.log(geodesicDistanceArray.T),cmap=cm.coolwarm)
     plt.plot(xx,yy,'or')
     plt.title('Geodesic distance Array with channel heads')
     plt.colorbar()
-    if defaults.doPlot==0:
+    if defaults.doPlot==1:
         plt.show()             
            
     #"""
@@ -1447,9 +1502,8 @@ def main():
             geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
             geodesicDistanceArrayMask[watershedIndexList]= geodesicDistanceArray[watershedIndexList]
             geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
-            print geodesicDistanceArrayMask.shape
-            if i == 278:
-                geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
+            #print geodesicDistanceArrayMask.shape
+            geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
                                     skeletonEndPoint,defaults.doTrueGradientDescent))
     #
     #print 'geodesicPathsCellList',geodesicPathsCellList

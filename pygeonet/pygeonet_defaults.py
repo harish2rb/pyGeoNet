@@ -33,7 +33,7 @@ diffusionMethod='PeronaMalik2'
 # ... could be:  PeronaMalik1, PeronaMalik2, Tukey, rampPreserving
 diffusionTimeIncrement=0.1
 diffusionSigmaSquared=0.05
-nFilterIterations=3 # Nonlinear filtering iterations
+nFilterIterations=50 # Nonlinear filtering iterations
 
 # Flow routing options and sub basin indexing
 yxPixelSizeRatio=1.0
