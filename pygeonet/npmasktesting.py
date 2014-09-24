@@ -4,40 +4,70 @@ import numpy.ma as npma
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
-testA = np.array([[910,910,910,910,909,909,909,909,909,909,910,911,912,913,914,915,916,916\
-,916,916,917,917,917,917,917,917,917,918,918,918,918,919,919,919,919,919\
-,919,919,919,919,919,919,919,919,919,919,920,920,920,919,919,919,919,919\
-,919,919,919,919,919,920,920,920,920,920,920,920,919,919,918,918,918,918\
-,917]\
-,[537,536,535,534,533,532,531,530,529,528,527,526,527,528,529,530,531,532\
-,533,534,535,536,537,538,539,540,541,542,543,544,545,546,547,548,549,550\
-,551,552,553,554,555,556,557,558,559,560,561,562,563,564,565,566,567,568\
-,569,570,571,572,573,574,575,576,577,578,579,580,581,582,583,584,585,586\
-,587]])
-
-
-print testA.T
-
-
 from osgeo import gdal
 
-outlettif = 'C:\\Mystuff\\grassgisdatabase\\ikawa_roi1_nutm54_clipped_geodesic_distanceMatlb.tif'
+outlettif = 'C:\\Mystuff\\IO_Data\\data\\ikawa_roi1_nutm54_clipped.tif'
 dsout = gdal.Open(outlettif, gdal.GA_ReadOnly)
 aryfdrout = dsout.GetRasterBand(1).ReadAsArray()
 nanDemArrayfdrout=np.array(aryfdrout)
 
 print nanDemArrayfdrout.shape
 
+np.savetxt('C:\\Mystuff\\grassgisdatabase\\testikawapy.txt', nanDemArrayfdrout, delimiter=',')
+
 nanDemArrayfdrout[nanDemArrayfdrout<0]=np.nan
+
+slice1 = nanDemArrayfdrout#np.array(nanDemArrayfdrout[0:99,0:99])
+print slice1
+
+
 
 #np.savetxt('C:\\Mystuff\\grassgisdatabase\\testikawaMatlb.txt', nanDemArrayfdrout, delimiter=',')   # X is an array
 
 plt.figure(1)
 plt.imshow(nanDemArrayfdrout,cmap=cm.coolwarm)
-plt.title('Geodesic Distance')
+plt.title('DEM')
+plt.show()
+
+
+plt.figure(2)
+plt.imshow(slice1,cmap=cm.coolwarm)
+plt.title('Slice')
 #plt.show()
 
+sliceslopeX,sliceslopeY = np.gradient(slice1,1)
+sliceslope = np.sqrt(sliceslopeX**2+sliceslopeY**2)
+gradXArrayT = np.divide(sliceslopeX,sliceslope)
+gradYArrayT = np.divide(sliceslopeY,sliceslope)
 
+gradGradXArray,tmpy = np.gradient(gradXArrayT,1)
+tmpX,gradGradYArray = np.gradient(gradYArrayT,1)
+
+curvatureDemArray = gradGradXArray + gradGradYArray
+
+print curvatureDemArray[75,50]
+
+plt.figure(3)
+plt.imshow(sliceslope,cmap=cm.coolwarm)
+plt.colorbar()
+plt.title('Slice slope')
+#plt.show()
+
+plt.figure(3)
+plt.imshow(curvatureDemArray,cmap=cm.coolwarm)
+plt.title('curvatureDemArray slice')
+plt.show()
+
+np.savetxt('C:\\Mystuff\\grassgisdatabase\\curvslice.txt', curvatureDemArray, delimiter=',')
+
+
+print 'mean curv:',str(np.nanmean(curvatureDemArray[:]))
+print 'stdev curv:',str(np.nanstd(curvatureDemArray[:]))
+# X is an array
+
+
+
+"""
 outlettif = 'C:\\Mystuff\\grassgisdatabase\\ikawa_roi1_nutm54_clipped_geodesicDistance.tif'
 dsout = gdal.Open(outlettif, gdal.GA_ReadOnly)
 aryfdrout = dsout.GetRasterBand(1).ReadAsArray()
@@ -115,6 +145,7 @@ for i in xrange(0,8):
         
 
 print finalary
-
+"""
+# end
 
 

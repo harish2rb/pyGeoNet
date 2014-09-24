@@ -168,38 +168,50 @@ def simple_gaussian_smoothing(inputDemArray,kernelWidth,diffusionSigmaSquared):
     halfKernelWidth=(kernelWidth-1)/2;
     #print "halfKernelWidth",halfKernelWidth
     # Make a ramp array with 5 rows each containing [-2, -1, 0, 1, 2]
-    x= np.ones((kernelWidth,1))* range(-halfKernelWidth,halfKernelWidth+1)
-    y=x.T
-    gaussianFilter = np.exp(-(x**2+y**2)/(2*diffusionSigmaSquared))  # 2D Gaussian
+    x = np.linspace(-halfKernelWidth, halfKernelWidth, kernelWidth)
+    #x= np.ones((kernelWidth,1))* range(-halfKernelWidth,halfKernelWidth+1)
+    #y=x.T
+    y = x
+    xv,yv = np.meshgrid(x,y)
+    gaussianFilter = np.exp(-(xv**2+yv**2)/(2*diffusionSigmaSquared))  # 2D Gaussian
     #print "gaussianFilter", gaussianFilter
-    gaussianFilter=gaussianFilter/sum(sum(gaussianFilter)) # Normalize
+    gaussianFilter=gaussianFilter/np.sum(gaussianFilter[:]) # Normalize
     #print inputDemArray[:,0:halfKernelWidth]
-    xL= np.mean(inputDemArray[:,0:halfKernelWidth],axis=1)
-    xL = np.matrix(xL)
-    #print "xL",xL.shape
-    xR= np.mean(inputDemArray[:,Nx-halfKernelWidth:Nx],axis =1)
-    xR = np.matrix(xR)
+    xL= np.nanmean(inputDemArray[:,0:halfKernelWidth],axis=1)
+    #xL = np.matrix(xL)
+    xR= np.nanmean(inputDemArray[:,Nx-halfKernelWidth:Nx],axis =1)
+    #xR = np.matrix(xR)
     #print "xR",xR.shape
-    part1 = xL.T * np.matrix(np.ones((1,halfKernelWidth)))
-    part2 = xR.T * np.matrix(np.ones((1,halfKernelWidth)))
+    part1T = np.vstack((xL,xL))
+    part1 = part1T.T
+    #part1 = xL * np.matrix(np.ones((1,halfKernelWidth)))
+    part2T = np.vstack((xR,xR))
+    part2 = part2T.T
+    #part2 = xR * np.matrix(np.ones((1,halfKernelWidth)))
     #print part1.shape, part2.shape
-    eI= np.matrix(np.concatenate((part1,inputDemArray,part2),1))
+    eI = np.hstack((part1,inputDemArray,part2))
+    #eI= np.matrix(np.concatenate((part1,inputDemArray,part2),1))
     #print 'eI',eI.shape
-    xU= np.mean(eI[0:halfKernelWidth,:],axis=0)
-    xU = np.matrix(xU)
+    xU= np.nanmean(eI[0:halfKernelWidth,:],axis=0)
+    #xU = np.matrix(xU)
     #print "xU",xU.shape
-    xD= np.mean(eI[Ny-halfKernelWidth:Ny,:],axis =0)
-    xD = np.matrix(xD)
+    xD= np.nanmean(eI[Ny-halfKernelWidth:Ny,:],axis =0)
+    #xD = np.matrix(xD)
     #print "xD",xD.shape
-    part3 = np.matrix(np.ones((halfKernelWidth,1)))*xU
-    part4 = np.matrix(np.ones((halfKernelWidth,1)))*xD
+    part3 = np.vstack((xU,xU))
+    part4 = np.vstack((xD,xD))
+    #print part3.shape, part4.shape
+    #part3 = np.matrix(np.ones((halfKernelWidth,1)))*xU
+    #part4 = np.matrix(np.ones((halfKernelWidth,1)))*xD
     # Generate the expanded DTM array, 4 pixels wider in both x,y directions
-    eI= np.matrix(np.concatenate((part3, eI, part4),0))
+    eI = np.vstack((part3,eI,part4))
+    #eI= np.matrix(np.concatenate((part3, eI, part4),0))
     #print 'eI',eI.shape
     # The 'valid' option forces the 2d convolution to clip 2 pixels off the edges
     # NaNs spread from one pixel to a 5x5 set centered on the NaN
     #smoothedDemArray=conv2.convolve2d(eI,gaussianFilter,'valid'); # original
-    smoothedDemArray=conv2.convolve2d(eI,gaussianFilter,'valid');
+    fillvalue = np.nanmean(inputDemArray[:])
+    smoothedDemArray=conv2.convolve2d(eI,gaussianFilter,'valid')
     return smoothedDemArray
 
 
@@ -221,23 +233,35 @@ def geonet_diffusion(demArray, diffusionMethod, nFilterIterations,\
         # Gaussian filter the DTM using a 5x5 kernel (Catte et al)
         if diffusionSigmaSquared>0:
             originalDemArray = demArray   # Save original DTM array
-            demArray = simple_gaussian_smoothing(demArray,5,diffusionSigmaSquared)
-
+            demArrayout = simple_gaussian_smoothing(demArray,5,diffusionSigmaSquared)
+        del demArray
+        demArray = demArrayout
         #print 'demArray after gaussian smoothing',demArray.shape
         # Now calculate gradient in all directions (N,S,E,W) by simple differencing
         # - with repeat padding in each direction.
         # This step will propagate NaNs one pixel inward in each dirn.
         demArrayMatrix = np.matrix(demArray)
-        In = (np.concatenate((demArrayMatrix[0,:],demArrayMatrix[0:Ny-1,:]),0)- demArrayMatrix)/pixelSize
-        Is = (np.concatenate((demArrayMatrix[1:Ny,:],demArrayMatrix[Ny-1,:]),0)- demArrayMatrix)/pixelSize
-        Ie = (np.concatenate((demArrayMatrix[:,1:Nx],demArrayMatrix[:,Nx-1]),1)- demArrayMatrix)/pixelSize
-        Iw = (np.concatenate((demArrayMatrix[:,0],demArrayMatrix[:,0:Nx-1]),1)- demArrayMatrix)/pixelSize
-
+        In = (np.concatenate((demArrayMatrix[0,:],demArrayMatrix[0:Ny-1,:]),0)\
+              - demArrayMatrix)/pixelSize
+        #print In.shape
+        #stop
+        Is = (np.concatenate((demArrayMatrix[1:Ny,:],demArrayMatrix[Ny-1,:]),0)\
+              - demArrayMatrix)/pixelSize
+        #print Isgr.shape, Is.shape
+        #print np.nanmean(Isgr - Is)
+        #stop
+        Ie = (np.concatenate((demArrayMatrix[:,1:Nx],demArrayMatrix[:,Nx-1]),1)\
+              - demArrayMatrix)/pixelSize
+        #print Ie.shape
+        
+        Iw = (np.concatenate((demArrayMatrix[:,0],demArrayMatrix[:,0:Nx-1]),1)\
+              - demArrayMatrix)/pixelSize
+        #print Iw.shape
         In[np.isnan(In)] = 0
         Is[np.isnan(Is)] = 0
         Ie[np.isnan(Ie)] = 0
         Iw[np.isnan(Iw)] = 0
-
+        
         # Calculate diffusion coefficients in all dirns according to diffusionMethod
         if diffusionMethod =='linear':
             Cn=edgeThreshold
@@ -261,33 +285,43 @@ def geonet_diffusion(demArray, diffusionMethod, nFilterIterations,\
             #Calculate real gradients (not smoothed) - with repeat padding in each
             # direction.  This step will propagate NaNs one pixel inward in each dirn.
             originalDemArrayMatrix = np.matrix(originalDemArray)
-            In = (np.concatenate((originalDemArrayMatrix[0,:],originalDemArrayMatrix[0:Ny-1,:]),0)- originalDemArrayMatrix)/pixelSize
-            Is = (np.concatenate((originalDemArrayMatrix[1:Ny,:],originalDemArrayMatrix[Ny-1,:]),0)- originalDemArrayMatrix)/pixelSize
-            Ie = (np.concatenate((originalDemArrayMatrix[:,1:Nx],originalDemArrayMatrix[:,Nx-1]),1)- originalDemArrayMatrix)/pixelSize
-            Iw = (np.concatenate((originalDemArrayMatrix[:,0],originalDemArrayMatrix[:,0:Nx-1]),1)- originalDemArrayMatrix)/pixelSize
+            In = (np.concatenate((originalDemArrayMatrix[0,:],originalDemArrayMatrix[0:Ny-1,:]),0)\
+                  - originalDemArrayMatrix)/pixelSize
+            Is = (np.concatenate((originalDemArrayMatrix[1:Ny,:],originalDemArrayMatrix[Ny-1,:]),0)\
+                  - originalDemArrayMatrix)/pixelSize
+            Ie = (np.concatenate((originalDemArrayMatrix[:,1:Nx],originalDemArrayMatrix[:,Nx-1]),1)\
+                  - originalDemArrayMatrix)/pixelSize
+            Iw = (np.concatenate((originalDemArrayMatrix[:,0],originalDemArrayMatrix[:,0:Nx-1]),1)\
+                  - originalDemArrayMatrix)/pixelSize
             In[np.isnan(In)] = 0
             Is[np.isnan(Is)] = 0
             Ie[np.isnan(Ie)] = 0
             Iw[np.isnan(Iw)] = 0
             demArray=originalDemArray
 
-        part6 = np.array(Cn)*np.array(In) + np.array(Cs)*np.array(Is) + np.array(Ce)*np.array(In) + np.array(Cw)*np.array(Iw)
+        part6 = np.array(Cn)*np.array(In) + np.array(Cs)*np.array(Is) +\
+                np.array(Ce)*np.array(In) + np.array(Cw)*np.array(Iw)
         demArrayMatrix = demArrayMatrix + diffusionTimeIncrement*(part6)
         #print demArrayMatrix.shape
+        
+        demArrayMatrix = demArray
+        #print demArrayMatrix.shape
+        
     return demArrayMatrix
 
 
 def compute_dem_curvature(demArray,pixelDemScale,curvatureCalcMethod):
     print 'computing DTM curvature'
+    #demArray[demArray<0]=np.nan
     gradXArray,gradYArray = np.gradient(demArray,pixelDemScale)
     slopeArrayT = np.sqrt(gradXArray**2 + gradYArray**2)
     if curvatureCalcMethod=='geometric':
         #Geometric curvature
         print 'using geometric curvature'
-        gradXArrayT = gradXArray/slopeArrayT
-        gradYArrayT = gradYArray/slopeArrayT
-        gradXArrayT[slopeArrayT==0.0]=0.0
-        gradYArrayT[slopeArrayT==0.0]=0.0
+        gradXArrayT = np.divide(gradXArray,slopeArrayT)
+        gradYArrayT = np.divide(gradYArray,slopeArrayT)
+        #gradXArrayT[slopeArrayT==0.0]=0.0
+        #gradYArrayT[slopeArrayT==0.0]=0.0
     elif curvatureCalcMethod=='laplacian':
         # do nothing..
         print 'using laplacian curvature'
@@ -475,6 +509,7 @@ def flowaccumulation(filteredDemArray):
         elevation=geotiffmapraster,\
         threshold=subbasinThreshold, accumulation='acc1v23',basin = 'bas1v23',\
         drainage = 'dra1v23')
+        flags ='a',
     """
     print g.run_command('r.watershed',flags ='a',overwrite=True,\
         elevation=geotiffmapraster,\
@@ -900,7 +935,7 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
                       [neighborPixelSkeletonEndPointList[1]]])
         #print 'b',b
         streamPathPixelList = np.hstack((streamPathPixelList,b))
-    print 'streamPathPixelList',streamPathPixelList
+    #print 'streamPathPixelList',streamPathPixelList
     #stop
     return streamPathPixelList
         
@@ -1054,13 +1089,14 @@ def main():
 
     # performing Perona-Malik filtering
     print 'Performing Perona-Malik nonlinear filtering'
-    #filteredDemArray=nanDemArray
     filteredDemArray = geonet_diffusion (nanDemArray,\
     defaults.diffusionMethod,\
     defaults.nFilterIterations, edgeThresholdValuescipy,\
     defaults.diffusionTimeIncrement,\
     defaults.diffusionSigmaSquared, 1+0*Parameters.demPixelScale);
 
+    #np.savetxt('C:\\Mystuff\\grassgisdatabase\\fildem.txt', filteredDemArray, delimiter=',')
+    
     # plotting the filtered DEM
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
@@ -1070,38 +1106,36 @@ def main():
     plt.title('Filtered DEM')
     if defaults.doPlot==1:
         plt.show()
-
+    
     # Writing the filtered DEM as a tif
     write_geotif_filteredDEM(filteredDemArray,Parameters.demDataFilePath,\
                              Parameters.demFileName)
 
-    #stop
-    #filteredDemArray[filteredDemArray == -3.402823e+038]=np.nan
     # Computing slope of filtered DEM
     print 'Computing slope of filtered DTM'
-    filteredDemArraynp = np.array(filteredDemArray)#np.gradient only takes an array as input
+    filteredDemArraynp = filteredDemArray#np.gradient only takes an array as input
     slopeXArray,slopeYArray = np.gradient(filteredDemArraynp,Parameters.demPixelScale)
     slopeDemArray = np.sqrt(slopeXArray**2 + slopeYArray**2)
-    print slopeDemArray.shape
-    slopeDemArray[np.isnan(slopeDemArray)] = 0.0
-    slopeDemArray[np.isnan(filteredDemArraynp)] = np.NAN
-    #print slopeDemArray.shape
-    #slopeDemArrayVector = np.array(slopeDemArray)[1,:]
+    #slopeDemArray[np.isnan(slopeDemArray)] = 0.0
+    #slopeDemArray[np.isnan(filteredDemArraynp)] = np.nan
+    
     slopeMagnitudeDemArrayQ = slopeDemArray
     slopeMagnitudeDemArrayQ = np.reshape(slopeMagnitudeDemArrayQ,\
                                          np.size(slopeMagnitudeDemArrayQ))
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayQ[~np.isnan(slopeMagnitudeDemArrayQ)]
     print ' angle min:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.001))*180/np.pi
     print ' angle max:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.999))*180/np.pi
+    print 'mean slope:',np.nanmean(slopeDemArray[:])
+    print 'stdev slope:',np.nanstd(slopeDemArray[:])
     
     #Computing curvature
     print 'computing curvature'
-    #curvatureDemArray= filteredDemArraynp
-    #curvatureDemArray[curvatureDemArray== defaults.demErrorFlag]=np.NaN
-    curvatureDemArray = compute_dem_curvature(filteredDemArraynp,\
+    curvatureDemArrayIn= filteredDemArraynp
+    #curvatureDemArrayIn[curvatureDemArrayIn== defaults.demErrorFlag]=np.nan
+    curvatureDemArray = compute_dem_curvature(curvatureDemArrayIn,\
                                               Parameters.demPixelScale,\
                                               defaults.curvatureCalcMethod)
-
+    print curvatureDemArray.shape
     # Writing the curvature array
     # inputArray = curvatureDemArray
     outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
@@ -1111,11 +1145,13 @@ def main():
     
     #Computation of statistics of curvature
     print 'Computing curvature statistics'
-    #print curvatureDemArray.shape
-    finiteCurvatureDemList = curvatureDemArray[~np.isnan(curvatureDemArray)]
-    #print finiteCurvatureDemList.shape
-    curvatureDemMean = np.mean(finiteCurvatureDemList)
-    curvatureDemStdDevn = np.std(finiteCurvatureDemList)
+    print curvatureDemArray.shape
+    tt = curvatureDemArray[~np.isnan(curvatureDemArray[:])]
+    print tt.shape
+    finiteCurvatureDemList = curvatureDemArray[np.isfinite(curvatureDemArray[:])]
+    print finiteCurvatureDemList.shape
+    curvatureDemMean = np.nanmean(finiteCurvatureDemList)
+    curvatureDemStdDevn = np.nanstd(finiteCurvatureDemList)
     print ' mean: ', curvatureDemMean
     print ' standard deviation: ', curvatureDemStdDevn
 
@@ -1131,7 +1167,7 @@ def main():
     if defaults.doPlot==1:
         plt.show()
     
-    stop
+    #stop
     #Compute curvature quantile-quantile curve
     # This seems to take a long time ... is commented for now
     print 'Computing curvature quantile-quantile curve'
@@ -1177,15 +1213,16 @@ def main():
     # plotting only for testing purposes
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(np.log(flowArray),cmap=cm.Dark2)
+    drainageMeasure = -np.sqrt(np.log10(flowArray))
+    plt.imshow(drainageMeasure,cmap=cm.coolwarm)
     plt.plot(outletPointsList[0],outletPointsList[1],'go')
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('flowArray with outlets')
     plt.colorbar()
-    if defaults.doPlot==0:
+    if defaults.doPlot==1:
         plt.show()
-    stop
+    #stop
     # plotting only for testing purposes
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
@@ -1223,7 +1260,7 @@ def main():
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
     plt.title('Curvetaure with outlets')
-    if defaults.doPlot==0:
+    if defaults.doPlot==1:
         plt.show()
     
     # Writing the skeletonFromFlowAndCurvatureArray array
@@ -1236,10 +1273,30 @@ def main():
     
     # Computing the percentage drainage areas
     print 'Computing percentage drainage area of each indexed basin'
-    # I will add this part later..
-    # as this is additional..
     fastMarchingStartPointList = np.array(outletPointsList)
-
+    fastMarchingStartPointListFMM = np.zeros((fastMarchingStartPointList.shape))
+    basinsUsedIndexList = np.zeros((len(fastMarchingStartPointList[0]),1))
+    nx = Parameters.xDemSize
+    ny = Parameters.yDemSize
+    nDempixels = float(nx*ny)
+    for label in range(0,len(fastMarchingStartPointList[0])):
+        outletbasinIndex = basinIndexArray[fastMarchingStartPointList[0,label],\
+                                         fastMarchingStartPointList[1,label]]
+        numelments = basinIndexArray[basinIndexArray==outletbasinIndex]
+        #print type(numelments), len(numelments)
+        percentBasinArea = float(len(numelments)) * 100/nDempixels
+        print 'Basin: ',outletbasinIndex,\
+              '@ : ',fastMarchingStartPointList[:,label],' #Elements ',len(numelments),\
+              ' area ',percentBasinArea,' %'
+        if percentBasinArea > defaults.thresholdPercentAreaForDelineation and\
+           len(numelments) > 6:
+            # Get the watersheds used
+            basinsUsedIndexList[label]= label
+            # Preparing the outlets used for fast marching in ROI
+            fastMarchingStartPointListFMM[:,label] = fastMarchingStartPointList[:,label]
+        # finishing Making outlets for FMM
+    #Closing Basin area computation
+    print fastMarchingStartPointListFMM
 
     # Computing the local cost function
     print 'Preparing to calculate cost function'
@@ -1256,7 +1313,8 @@ def main():
     plt.imshow(curvatureDemArray,cmap=cm.coolwarm)
     plt.title('Curvature after normalization')
     plt.colorbar()
-    #plt.show()
+    if defaults.doPlot==1:
+        plt.show()
     
     
     print 'Curvature min: ' ,str(np.min(curvatureDemArray[~np.isnan(curvatureDemArray)])), \
@@ -1273,24 +1331,27 @@ def main():
     # old cost function.
     flowArray = flowArray.T
     curvatureDemArray = curvatureDemArray.T
-    print flowArray.shape
-    print curvatureDemArray.shape
-    print skeletonFromFlowAndCurvatureArray.shape
     
     if hasattr(defaults, 'reciprocalLocalCostFn'):
+        print 'Evaluating local cost func.'
         reciprocalLocalCostArray = eval(defaults.reciprocalLocalCostFn)
     else:
+        print 'Evaluating local cost func. (default)'
         reciprocalLocalCostArray = flowArray + \
-                                   flowMean*skeletonFromFlowAndCurvatureArray\
-                                   + flowMean*curvatureDemArray
-
+                                   (flowMean*skeletonFromFlowAndCurvatureArray)\
+                                   + (flowMean*curvatureDemArray)
+    del reciprocalLocalCostArray
+    # Forcing the evaluations
+    reciprocalLocalCostArray = flowArray + \
+                                   (flowMean*skeletonFromFlowAndCurvatureArray)\
+                                   + (flowMean*curvatureDemArray)
     if hasattr(defaults,'reciprocalLocalCostMinimum'):
         if defaults.reciprocalLocalCostMinimum != 'nan':
             reciprocalLocalCostArray[reciprocalLocalCostArray[:]\
                                  < defaults.reciprocalLocalCostMinimum]=1.0
     
-    print '1/cost min: ', np.min(reciprocalLocalCostArray[~np.isnan(reciprocalLocalCostArray)]) 
-    print '1/cost max: ', np.max(reciprocalLocalCostArray[~np.isnan(reciprocalLocalCostArray)])
+    print '1/cost min: ', np.nanmin(reciprocalLocalCostArray[:]) 
+    print '1/cost max: ', np.nanmax(reciprocalLocalCostArray[:])
 
     # Writing the reciprocal array
     outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
@@ -1308,54 +1369,50 @@ def main():
     print reciprocalLocalCostArray.shape
     #stop
     
-    defaults.figureNumber = defaults.figureNumber + 1
-    plt.figure(defaults.figureNumber)
-    plt.figure(defaults.figureNumber)
-    plt.imshow(reciprocalLocalCostArray.T,cmap=cm.coolwarm)
-    plt.title('Reciprocal cost array')
-    plt.colorbar()
-    #plt.show()
-    #stop
-
     # Do fast marching for each sub basin
     geodesicDistanceArray = np.zeros((basinIndexArray.shape))
-    geodesicDistanceArray[geodesicDistanceArray==0]=np.nan
+    geodesicDistanceArray[geodesicDistanceArray==0]=np.Inf
+    filteredDemArrayTr = filteredDemArray.T
     defaults.figureNumber = defaults.figureNumber + 1
-    for i in range(0,len(fastMarchingStartPointList[0])):
-        basinIndexList = basinIndexArray[fastMarchingStartPointList[0,i],\
-                                         fastMarchingStartPointList[1,i]]
-        print 'basin Index:',str(basinIndexList)
-        maskedBasin = np.zeros((basinIndexArray.shape))
-        maskedBasin[basinIndexArray==basinIndexList]=1
-        # For the masked basin get the maximum accumulation are
-        # location and use that as an outlet for the basin.
-        maskedBasinFAC = np.zeros((basinIndexArray.shape))
-        maskedBasinFAC[basinIndexArray==basinIndexList]=\
+    for i in range(0,len(fastMarchingStartPointListFMM[0])):
+        if fastMarchingStartPointListFMM[0,i] != 0 and\
+           fastMarchingStartPointListFMM[1,i] != 0:
+            basinIndexList = basinIndexArray[fastMarchingStartPointListFMM[0,i],\
+                                         fastMarchingStartPointListFMM[1,i]]
+            print 'basin Index:',str(basinIndexList)
+            maskedBasin = np.zeros((basinIndexArray.shape))
+            maskedBasin[basinIndexArray==basinIndexList]=1
+            # For the masked basin get the maximum accumulation are
+            # location and use that as an outlet for the basin.
+            maskedBasinFAC = np.zeros((basinIndexArray.shape))
+            maskedBasinFAC[basinIndexArray==basinIndexList]=\
             flowArray[basinIndexArray==basinIndexList]
-        maskedBasinFAC[maskedBasinFAC==0]=np.nan
-        # Get the outlet of subbasin
-        maskedBasinFAC[np.isnan(maskedBasinFAC)]=0
-        #subBasinoutletindices = np.where(maskedBasinFAC==maskedBasinFAC.max())
-        # print subBasinoutletindices
-        # outlets locations in projection of the input dataset
-        outletsxx = fastMarchingStartPointList[0,i]#subBasinoutletindices[0]
-        outletsyy = fastMarchingStartPointList[1,i]#subBasinoutletindices[1]
-        # call the fast marching here
-        phi = -1*np.ones((reciprocalLocalCostArray.shape))
-        phi[maskedBasinFAC!=0] = reciprocalLocalCostArray[maskedBasinFAC!=0]
-        phi[phi==-1]=np.nan
-        phi[outletsxx,outletsyy] =-1
-        speed = phi
-        distancearray = skfmm.distance(1/phi, dx=1)
-        travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
-        print travelTimearray.shape
-        geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
+            maskedBasinFAC[maskedBasinFAC==0]=np.nan
+            # Get the outlet of subbasin
+            maskedBasinFAC[np.isnan(maskedBasinFAC)]=0
+            #subBasinoutletindices = np.where(maskedBasinFAC==maskedBasinFAC.max())
+            # print subBasinoutletindices
+            # outlets locations in projection of the input dataset
+            outletsxx = fastMarchingStartPointList[0,i]#subBasinoutletindices[0]
+            outletsyy = fastMarchingStartPointList[1,i]#subBasinoutletindices[1]
+            # call the fast marching here
+            phi = -1*np.ones((reciprocalLocalCostArray.shape))
+            DEMarray = -1*np.ones((reciprocalLocalCostArray.shape))
+            phi[maskedBasinFAC!=0] = reciprocalLocalCostArray[maskedBasinFAC!=0]
+            phi[phi==-1]=np.nan
+            phi[outletsxx,outletsyy] =-1
+            speed = phi
+            distancearray = skfmm.distance(1/phi, dx=1)
+            travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
+            print travelTimearray.shape
+            geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
 
-        plt.figure(defaults.figureNumber)
-        plt.imshow(travelTimearray.T,cmap=cm.coolwarm)
-        #plt.contour(travelTimearray.T,cmap=cm.coolwarm)
-        plt.title('basin Index'+str(basinIndexList))
-        plt.show()
+            #plt.figure(defaults.figureNumber)
+            #plt.imshow(speed.T,cmap=cm.coolwarm)
+            #plt.contour(travelTimearray.T,cmap=cm.coolwarm)
+            #plt.title('basin Index'+str(basinIndexList))
+            #plt.show()
+            #stop
 
     # Plot the geodesic array
     defaults.figureNumber = defaults.figureNumber + 1
@@ -1423,10 +1480,11 @@ def main():
     #"""
     # Elements smaller than skeletonNumElementsThreshold are not considered in the
     # skeletonEndPointsList detection
-    skeletonNumElementsThreshold = skeletonNumElementsHistogramX[1]
+    print skeletonNumElementsHistogramX
+    skeletonNumElementsThreshold = skeletonNumElementsHistogramX[3]
     
     print 'skeletonNumElementsThreshold',str(skeletonNumElementsThreshold)
-
+    
     # Scan the array for finding the channel heads
     print 'Continuing to locate skeleton endpoints'
     #"""
@@ -1509,7 +1567,7 @@ def main():
     #print 'geodesicPathsCellList',geodesicPathsCellList
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    plt.imshow(geodesicDistanceArray.T,cmap=cm.coolwarm)
+    plt.imshow(flowDirectionsArray,cmap=cm.coolwarm)
     for pp in range(0,len(geodesicPathsCellList)):
         plt.plot(geodesicPathsCellList[pp][0,:],geodesicPathsCellList[pp][1,:],'-r')
     plt.plot(xx,yy,'og')
