@@ -1396,14 +1396,17 @@ def main():
             outletsxx = fastMarchingStartPointList[0,i]#subBasinoutletindices[0]
             outletsyy = fastMarchingStartPointList[1,i]#subBasinoutletindices[1]
             # call the fast marching here
-            phi = -1*np.ones((reciprocalLocalCostArray.shape))
-            DEMarray = -1*np.ones((reciprocalLocalCostArray.shape))
-            phi[maskedBasinFAC!=0] = reciprocalLocalCostArray[maskedBasinFAC!=0]
-            phi[phi==-1]=np.nan
+            phi = np.nan * np.ones((reciprocalLocalCostArray.shape))
+            speed = np.ones((reciprocalLocalCostArray.shape))* np.nan
+            #DEMarray = -1*np.ones((reciprocalLocalCostArray.shape))
+            phi[maskedBasinFAC!=0] = 1#reciprocalLocalCostArray[maskedBasinFAC!=0]
+            speed[maskedBasinFAC!=0] = reciprocalLocalCostArray[maskedBasinFAC!=0]
+            #phi[phi==-1]=np.nan
             phi[outletsxx,outletsyy] =-1
-            speed = phi
-            distancearray = skfmm.distance(1/phi, dx=1)
-            travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
+            #speed = phi
+            #distancearray = skfmm.distance(1/phi, dx=1)
+            #travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
+            travelTimearray = skfmm.travel_time(phi,speed, dx=1)
             print travelTimearray.shape
             geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
 
@@ -1558,7 +1561,8 @@ def main():
             print 'watershedLabel',watershedLabel
             watershedIndexList = basinIndexArray == watershedLabel
             geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
-            geodesicDistanceArrayMask[watershedIndexList]= geodesicDistanceArray[watershedIndexList]
+            geodesicDistanceArrayMask[watershedIndexList]= \
+                            geodesicDistanceArray[watershedIndexList]
             geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
             #print geodesicDistanceArrayMask.shape
             geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
@@ -1569,7 +1573,7 @@ def main():
     plt.figure(defaults.figureNumber)
     plt.imshow(flowDirectionsArray,cmap=cm.coolwarm)
     for pp in range(0,len(geodesicPathsCellList)):
-        plt.plot(geodesicPathsCellList[pp][0,:],geodesicPathsCellList[pp][1,:],'-r')
+        plt.plot(geodesicPathsCellList[pp][0,:],geodesicPathsCellList[pp][1,:],'-k')
     plt.plot(xx,yy,'og')
     plt.title('Geodesic Array with channel heads and streams')
     plt.colorbar()
