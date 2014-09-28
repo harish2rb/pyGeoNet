@@ -1274,7 +1274,9 @@ def main():
     # Computing the percentage drainage areas
     print 'Computing percentage drainage area of each indexed basin'
     fastMarchingStartPointList = np.array(outletPointsList)
-    fastMarchingStartPointListFMM = np.zeros((fastMarchingStartPointList.shape))
+    #fastMarchingStartPointListFMM = np.zeros((fastMarchingStartPointList.shape))
+    fastMarchingStartPointListFMMx = []
+    fastMarchingStartPointListFMMy = []
     basinsUsedIndexList = np.zeros((len(fastMarchingStartPointList[0]),1))
     nx = Parameters.xDemSize
     ny = Parameters.yDemSize
@@ -1293,10 +1295,24 @@ def main():
             # Get the watersheds used
             basinsUsedIndexList[label]= label
             # Preparing the outlets used for fast marching in ROI
-            fastMarchingStartPointListFMM[:,label] = fastMarchingStartPointList[:,label]
+            #fastMarchingStartPointListFMM[:,label] = fastMarchingStartPointList[:,label]
+            fastMarchingStartPointListFMMx.append(fastMarchingStartPointList[0,label])
+            fastMarchingStartPointListFMMy.append(fastMarchingStartPointList[1,label])
         # finishing Making outlets for FMM
     #Closing Basin area computation
-    print fastMarchingStartPointListFMM
+    #print fastMarchingStartPointListFMM
+
+    #print fastMarchingStartPointListFMM.shape
+
+    #print fastMarchingStartPointListFMMx
+    #print fastMarchingStartPointListFMMy
+
+    fastMarchingStartPointListFMM = np.array([fastMarchingStartPointListFMMx,\
+                                                  fastMarchingStartPointListFMMy])
+    #print fastMarchingStartPointListFMM
+    #print fastMarchingStartPointListFMM.shape
+
+    #stop
 
     # Computing the local cost function
     print 'Preparing to calculate cost function'
@@ -1368,63 +1384,85 @@ def main():
     print 'basinIndexList:', str(basinIndexList)
     print reciprocalLocalCostArray.shape
     #stop
-    
+
+    plt.show()
     # Do fast marching for each sub basin
     geodesicDistanceArray = np.zeros((basinIndexArray.shape))
     geodesicDistanceArray[geodesicDistanceArray==0]=np.Inf
     filteredDemArrayTr = filteredDemArray.T
     defaults.figureNumber = defaults.figureNumber + 1
     for i in range(0,len(fastMarchingStartPointListFMM[0])):
-        if fastMarchingStartPointListFMM[0,i] != 0 and\
-           fastMarchingStartPointListFMM[1,i] != 0:
-            basinIndexList = basinIndexArray[fastMarchingStartPointListFMM[0,i],\
-                                         fastMarchingStartPointListFMM[1,i]]
-            print 'basin Index:',str(basinIndexList)
-            maskedBasin = np.zeros((basinIndexArray.shape))
-            maskedBasin[basinIndexArray==basinIndexList]=1
-            # For the masked basin get the maximum accumulation are
-            # location and use that as an outlet for the basin.
-            maskedBasinFAC = np.zeros((basinIndexArray.shape))
-            maskedBasinFAC[basinIndexArray==basinIndexList]=\
-            flowArray[basinIndexArray==basinIndexList]
-            maskedBasinFAC[maskedBasinFAC==0]=np.nan
-            # Get the outlet of subbasin
-            maskedBasinFAC[np.isnan(maskedBasinFAC)]=0
-            #subBasinoutletindices = np.where(maskedBasinFAC==maskedBasinFAC.max())
-            # print subBasinoutletindices
-            # outlets locations in projection of the input dataset
-            outletsxx = fastMarchingStartPointList[0,i]#subBasinoutletindices[0]
-            outletsyy = fastMarchingStartPointList[1,i]#subBasinoutletindices[1]
-            # call the fast marching here
-            phi = np.nan * np.ones((reciprocalLocalCostArray.shape))
-            speed = np.ones((reciprocalLocalCostArray.shape))* np.nan
-            #DEMarray = -1*np.ones((reciprocalLocalCostArray.shape))
-            phi[maskedBasinFAC!=0] = 1#reciprocalLocalCostArray[maskedBasinFAC!=0]
-            speed[maskedBasinFAC!=0] = reciprocalLocalCostArray[maskedBasinFAC!=0]
-            #phi[phi==-1]=np.nan
-            phi[outletsxx,outletsyy] =-1
-            #speed = phi
-            #distancearray = skfmm.distance(1/phi, dx=1)
-            #travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
+        basinIndexList = basinIndexArray[fastMarchingStartPointListFMM[0,i],\
+                                    fastMarchingStartPointListFMM[1,i]]
+        print 'basin Index:',basinIndexList
+        print 'start point :', fastMarchingStartPointListFMM[:,i]
+        maskedBasin = np.zeros((basinIndexArray.shape))
+        maskedBasin[basinIndexArray==basinIndexList]=1
+        # For the masked basin get the maximum accumulation are
+        # location and use that as an outlet for the basin.
+        maskedBasinFAC = np.zeros((basinIndexArray.shape))
+        maskedBasinFAC[basinIndexArray==basinIndexList]=\
+        flowArray[basinIndexArray==basinIndexList]
+        maskedBasinFAC[maskedBasinFAC==0]=np.nan
+        # Get the outlet of subbasin
+        maskedBasinFAC[np.isnan(maskedBasinFAC)]=0
+        #subBasinoutletindices = np.where(maskedBasinFAC==maskedBasinFAC.max())
+        # print subBasinoutletindices
+        # outlets locations in projection of the input dataset
+        outletsxx = fastMarchingStartPointList[0,i]#subBasinoutletindices[0]
+        outletsyy = fastMarchingStartPointList[1,i]#subBasinoutletindices[1]
+        # call the fast marching here
+        phi = np.nan * np.ones((reciprocalLocalCostArray.shape))
+        speed = np.ones((reciprocalLocalCostArray.shape))* np.nan
+        #DEMarray = -1*np.ones((reciprocalLocalCostArray.shape))
+        phi[maskedBasinFAC!=0] = 1#reciprocalLocalCostArray[maskedBasinFAC!=0]
+        speed[maskedBasinFAC!=0] = reciprocalLocalCostArray[maskedBasinFAC!=0]
+        #phi[phi==-1]=np.nan
+        phi[fastMarchingStartPointListFMM[0,i],\
+            fastMarchingStartPointListFMM[1,i]] =-1
+        #speed = phi
+        #distancearray = skfmm.distance(1/phi, dx=1)
+        #travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
+        try:
             travelTimearray = skfmm.travel_time(phi,speed, dx=1)
-            print travelTimearray.shape
-            geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
-
-            #plt.figure(defaults.figureNumber)
-            #plt.imshow(speed.T,cmap=cm.coolwarm)
-            #plt.contour(travelTimearray.T,cmap=cm.coolwarm)
-            #plt.title('basin Index'+str(basinIndexList))
-            #plt.show()
-            #stop
-
+        except:
+            
+            print 'Error in calculating skfmm travel time'
+            print 'Error in catchment: ',basinIndexList
+            # setting travel time to empty array
+            travelTimearray = np.nan * np.zeros((reciprocalLocalCostArray.shape))
+            plt.figure(defaults.figureNumber+1)
+            plt.imshow(speed.T,cmap=cm.coolwarm)
+            plt.plot(fastMarchingStartPointListFMM[0,i],\
+                    fastMarchingStartPointListFMM[1,i],'ok')
+            #plt.contour(speed.T,cmap=cm.coolwarm)
+            plt.title('speed basin Index'+str(basinIndexList))
+            plt.colorbar()
+            plt.show()
+            
+            plt.figure(defaults.figureNumber+1)
+            plt.imshow(phi.T,cmap=cm.coolwarm)
+            plt.plot(fastMarchingStartPointListFMM[0,i],\
+                    fastMarchingStartPointListFMM[1,i],'ok')
+            #plt.contour(speed.T,cmap=cm.coolwarm)
+            plt.title('phi basin Index'+str(basinIndexList))
+            plt.colorbar()
+            plt.show()
+            
+            print "I/O error({0}): {1}".format(e.errno, e.strerror)
+            stop
+        
+        #print travelTimearray.shape
+        geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
+    #-----------------------------------
     # Plot the geodesic array
     defaults.figureNumber = defaults.figureNumber + 1
     plt.figure(defaults.figureNumber)
-    #plt.imshow(np.log10(geodesciDistanceArray),cmap=cm.coolwarm)
+    plt.imshow(np.log10(geodesicDistanceArray.T),cmap=cm.coolwarm)
     plt.contour(geodesicDistanceArray.T,140,cmap=cm.coolwarm)
     plt.title('Geodesic distance array (travel time)')
     plt.colorbar()
-    if defaults.doPlot==0:
+    if defaults.doPlot==1:
         plt.show()
     
     print geodesicDistanceArray.shape
@@ -1541,7 +1579,7 @@ def main():
     plt.plot(xx,yy,'or')
     plt.title('Geodesic distance Array with channel heads')
     plt.colorbar()
-    if defaults.doPlot==1:
+    if defaults.doPlot==0:
         plt.show()             
            
     #"""
@@ -1575,7 +1613,7 @@ def main():
     for pp in range(0,len(geodesicPathsCellList)):
         plt.plot(geodesicPathsCellList[pp][0,:],geodesicPathsCellList[pp][1,:],'-k')
     plt.plot(xx,yy,'og')
-    plt.title('Geodesic Array with channel heads and streams')
+    plt.title('flowDirectionsArray channel heads and streams')
     plt.colorbar()
     if defaults.doPlot==1:
         plt.show()
