@@ -3,8 +3,9 @@ import os
 currentWorkingDir = os.getcwd()
 geoNetHomeDir = "C:\\Mystuff\\IO_Data\\"
 demDataFilePath =  geoNetHomeDir +"data\\"
-demFileName = "ikawa_roi1_nutm54_clipped.tif"
+demFileName = "dem_2012_mission_v1.tif"
 #ikawa_roi1_nutm54_clipped
+#dem_2012_mission_v1
 
 print demDataFilePath
 print demFileName

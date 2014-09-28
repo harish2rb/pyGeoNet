@@ -725,7 +725,7 @@ def normalize(inputArray):
     return normalizedArrayR
 
 # Compute discrete geodesics
-def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradientDescent ):
+def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradientDescent,num):
     #print 'computing discrete geodesics'
     # Extract a discrete geodesic path in 2D
     # D = geodesic distance matrix
@@ -849,7 +849,6 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
             print rw1,rw2,rw3,rw4,rw5,rw6
             print rw1[~rw1.mask]
             print rw2[~rw2.mask]
-        
         #print allGeodesicDistanceList
         #print cardinalPixelGeodesicDistanceList
         #print diagonalPixelGeodesicDistanceList
@@ -922,8 +921,8 @@ def compute_discrete_geodesic(geodesicDistanceArray,skeletonEndPoint,doTrueGradi
             #print "greater geo distance"
             #print channelHeadGeodesicDistance
             break
-        elif chosenGeodesicDistanceFromAll == 0:
-            print "equal zzero"
+        elif np.isnan(chosenGeodesicDistanceFromAll):
+            print "equal NaN"
             break
         #print 'before assig:',channelHeadGeodesicDistance
         channelHeadGeodesicDistance = chosenGeodesicDistanceFromAll
@@ -1385,7 +1384,7 @@ def main():
     print reciprocalLocalCostArray.shape
     #stop
 
-    plt.show()
+    #plt.show()
     # Do fast marching for each sub basin
     geodesicDistanceArray = np.zeros((basinIndexArray.shape))
     geodesicDistanceArray[geodesicDistanceArray==0]=np.Inf
@@ -1425,7 +1424,7 @@ def main():
         #travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
         try:
             travelTimearray = skfmm.travel_time(phi,speed, dx=1)
-        except:
+        except IOError as e:
             
             print 'Error in calculating skfmm travel time'
             print 'Error in catchment: ',basinIndexList
@@ -1450,7 +1449,7 @@ def main():
             plt.show()
             
             print "I/O error({0}): {1}".format(e.errno, e.strerror)
-            stop
+            #stop
         
         #print travelTimearray.shape
         geodesicDistanceArray[maskedBasin ==1]= travelTimearray[maskedBasin ==1]
@@ -1579,9 +1578,10 @@ def main():
     plt.plot(xx,yy,'or')
     plt.title('Geodesic distance Array with channel heads')
     plt.colorbar()
-    if defaults.doPlot==0:
-        plt.show()             
-           
+    if defaults.doPlot==1:
+        plt.show()
+    
+    #plt.close("all")      
     #"""
     # Do compute discrete geodesics
     print 'Computing discrete geodesics'
@@ -1592,19 +1592,18 @@ def main():
         print 'EndPoint# ',i,'/',numberOfEndPoints
         xEndPoint = xx[i]
         yEndPoint = yy[i]
-        if xEndPoint > 0 and xEndPoint < outerbounds[0] and \
-           yEndPoint > 0 and yEndPoint < outerbounds[1]:
-            skeletonEndPoint = np.array([[xEndPoint],[yEndPoint]]) 
-            watershedLabel = basinIndexArray[xEndPoint,yEndPoint]
-            print 'watershedLabel',watershedLabel
-            watershedIndexList = basinIndexArray == watershedLabel
-            geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
-            geodesicDistanceArrayMask[watershedIndexList]= \
+        skeletonEndPoint = np.array([[xEndPoint],[yEndPoint]]) 
+        watershedLabel = basinIndexArray[xEndPoint,yEndPoint]
+        print 'watershedLabel',watershedLabel
+        watershedIndexList = basinIndexArray == watershedLabel
+        geodesicDistanceArrayMask = np.zeros((geodesicDistanceArray.shape))
+        geodesicDistanceArrayMask[watershedIndexList]= \
                             geodesicDistanceArray[watershedIndexList]
-            geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
-            #print geodesicDistanceArrayMask.shape
-            geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
-                                    skeletonEndPoint,defaults.doTrueGradientDescent))
+        geodesicDistanceArrayMask[geodesicDistanceArrayMask == 0]= np.Inf
+        #print geodesicDistanceArrayMask.shape
+        # End of bugging 
+        geodesicPathsCellList.append(compute_discrete_geodesic(geodesicDistanceArrayMask,\
+                                    skeletonEndPoint,defaults.doTrueGradientDescent,i))
     #
     #print 'geodesicPathsCellList',geodesicPathsCellList
     defaults.figureNumber = defaults.figureNumber + 1
