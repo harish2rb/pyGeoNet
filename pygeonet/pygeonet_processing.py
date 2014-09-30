@@ -163,6 +163,7 @@ def quantile(x, q,  qtype = 7, issorted = False):
 def simple_gaussian_smoothing(inputDemArray,kernelWidth,diffusionSigmaSquared):
     """
     smoothing input array with gaussian
+    Code is vectorized for efficiency Harish Sangireddy
     """
     [Ny,Nx]=inputDemArray.shape;
     #print Ny,Nx
@@ -356,7 +357,7 @@ def write_geotif_generic(inputArray,outfilepath,outfilename):
     #print driver
     outDs = driver.Create(output_fileName, nrows, ncols, 1, gdal.GDT_Float64)
     if outDs is None:
-        print 'Could not create reclass_40.tif'
+        print 'Could not create DemName.tif'
         sys.exit(1)
     outBand = outDs.GetRasterBand(1)
     #outData = inputArray
@@ -379,10 +380,10 @@ def write_geotif_generic(inputArray,outfilepath,outfilename):
 
     
 
-# Write geotiff to disk
+# Write filtered geotiff to disk to be used by GRASS GIS
 def write_geotif_filteredDEM(filteredDemArray,filepath,filename):
     print 'writing filtered DEM'
-    output_fileName = "C:\\Mystuff\\grassgisdatabase\\PM_filtered_grassgis.tif"
+    output_fileName = Parameters.pmGrassGISfileName
     # Create gtif
     ncols = filteredDemArray.shape[0]
     nrows = filteredDemArray.shape[1]
@@ -457,10 +458,15 @@ def flowaccumulation(filteredDemArray):
     nrows = filteredDemArray.shape[1]
     print ncols,nrows
     gisbase = os.environ['GISBASE']
-    gisdbdir = 'C:\\Users\\Harish\\Documents\\grassdata'
+    gisdbdir = Parameters.gisdbdir
+    #'C:\\Users\\Harish\\Documents\\grassdata'
+    
     originalGeotiff = Parameters.demDataFilePath + Parameters.demFileName
     #geotiff = originalGeotiff
-    geotiff = 'c:\\Mystuff\\grassgisdatabase\\PM_filtered_grassgis.tif'
+    
+    geotiff = Parameters.pmGrassGISfileName
+    #'c:\\Mystuff\\grassgisdatabase\\PM_filtered_grassgis.tif'
+    
     locationGeonet = 'geonet'
     mapsetGeonet = 'geonetuser'
     print 'Making the geonet location'
@@ -532,13 +538,14 @@ def flowaccumulation(filteredDemArray):
         threshold=subbasinThreshold, accumulation='acc1v23',basin = 'bas1v23',\
         drainage = 'dra1v23')
     """
+    
     print 'r.maplac'
     print g.run_command('r.mapcalc',overwrite=True,\
         expression='outletmap = dra1v23 < 0')
     outlet_filename = geotiffmapraster + '_outlets.tif'
     print g.run_command('r.out.gdal',overwrite=True,\
                         input='outletmap', type='Float32',\
-                        output='C:\\Mystuff\\grassgisdatabase\\' +\
+                        output=Parameters.geonetResultsDir +\
                         outlet_filename,\
                         format='GTiff')
     
@@ -549,14 +556,14 @@ def flowaccumulation(filteredDemArray):
     outputFAC_filename = geotiffmapraster + '_fac.tif'
     print g.run_command('r.out.gdal',overwrite=True,\
                         input='acc1v23', type='Float64',\
-                        output='C:\\Mystuff\\grassgisdatabase\\' +\
+                        output=Parameters.geonetResultsDir +\
                         outputFAC_filename,\
                         format='GTiff')
     
     outputFDR_filename = geotiffmapraster + '_fdr.tif'
     print g.run_command('r.out.gdal',overwrite=True,\
                         input = "dra1v23", type='Float64',\
-                        output='C:\\Mystuff\\grassgisdatabase\\'+\
+                        output=Parameters.geonetResultsDir+\
                         outputFDR_filename,\
                         format='GTiff')
     """
@@ -568,14 +575,14 @@ def flowaccumulation(filteredDemArray):
                         format='GTiff')
     """
     # plot the flow directions
-    fdrtif = 'C:\\Mystuff\\grassgisdatabase\\'+outputFDR_filename
+    fdrtif = Parameters.geonetResultsDir+outputFDR_filename
     dsfdr = gdal.Open(fdrtif, gdal.GA_ReadOnly)
     aryfdr = dsfdr.GetRasterBand(1).ReadAsArray()
     nanDemArrayfdr=np.array(aryfdr)
     nanDemArrayfdrT = nanDemArrayfdr.T
     del dsfdr,aryfdr
 
-    outlettif = 'C:\\Mystuff\\grassgisdatabase\\'+outlet_filename
+    outlettif = Parameters.geonetResultsDir+outlet_filename
     dsout = gdal.Open(outlettif, gdal.GA_ReadOnly)
     aryfdrout = dsout.GetRasterBand(1).ReadAsArray()
     nanDemArrayfdrout=np.array(aryfdrout)
@@ -610,7 +617,7 @@ def flowaccumulation(filteredDemArray):
         plt.show()
 
     # plot the flow accumulation
-    factif = 'C:\\Mystuff\\grassgisdatabase\\'+outputFAC_filename
+    factif = Parameters.geonetResultsDir+outputFAC_filename
     dsfac = gdal.Open(factif, gdal.GA_ReadOnly)
     aryfac = dsfac.GetRasterBand(1).ReadAsArray()
     nanDemArrayfac=np.array(aryfac)
@@ -673,12 +680,12 @@ def flowaccumulation(filteredDemArray):
         outputoneBAS_filename = geotiffmapraster + '_onebasins_'+str(op+ 1)+'.tif'
         print g.run_command('r.out.gdal',overwrite=True,\
                         input = "oneoutletbasin"+str(op+ 1), type='Float32',\
-                        output='C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'+\
+                        output= Parameters.geonetResultsBasinDir+\
                         outputoneBAS_filename,\
                         format='GTiff')
         
         # Read big basin files
-        bigbasintif = 'C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'+\
+        bigbasintif = Parameters.geonetResultsBasinDir+\
                       geotiffmapraster+'_onebasins_'+str(op+1)+'.tif'
         dsbasin = gdal.Open(bigbasintif, gdal.GA_ReadOnly)
         arybasin = dsbasin.GetRasterBand(1).ReadAsArray()
@@ -950,11 +957,11 @@ def write_channel_heads(xx,yy):
     # set up the shapefile driver
     driver = ogr.GetDriverByName(Parameters.driverName)
     # This will delete and assist in overwrite of the shape files
-    if os.path.exists(Parameters.FileName):
-        driver.DeleteDataSource(Parameters.FileName)
+    if os.path.exists(Parameters.pointFileName):
+        driver.DeleteDataSource(Parameters.pointFileName)
     
     # create the data source
-    data_source = driver.CreateDataSource(Parameters.FileName)
+    data_source = driver.CreateDataSource(Parameters.pointFileName)
     
     # create the spatial reference, same as the input dataset
     srs = osr.SpatialReference()
@@ -971,7 +978,7 @@ def write_channel_heads(xx,yy):
     
     
     # create the layer
-    layer = data_source.CreateLayer(Parameters.shapefileName,\
+    layer = data_source.CreateLayer(Parameters.pointshapefileName,\
                                     srs, ogr.wkbPoint)
     # Add the fields we're interested in
     field_name = ogr.FieldDefn("Name", ogr.OFTString)
@@ -984,14 +991,14 @@ def write_channel_heads(xx,yy):
     
     layer.CreateField(ogr.FieldDefn("Latitude", ogr.OFTReal))
     layer.CreateField(ogr.FieldDefn("Longitude", ogr.OFTReal))
-    tmpfname = Parameters.demFileName
+    
     # Now add the channel heads as features to the layer
     for i in xrange(0,len(xxProj)):
         # create the feature
         feature = ogr.Feature(layer.GetLayerDefn())
         # Set the attributes using the values
         feature.SetField("Name", 'ChannelHead')        
-        feature.SetField("Region", tmpfname.split(".")[0])
+        feature.SetField("Region", Parameters.Region)
         feature.SetField("Latitude", xxProj[i])
         feature.SetField("Longitude", yyProj[i])
         # create the WKT for the feature using Python string formatting
@@ -1004,7 +1011,6 @@ def write_channel_heads(xx,yy):
         layer.CreateFeature(feature)
         # Destroy the feature to free resources
         feature.Destroy()
-
     # Destroy the data source to free resources
     data_source.Destroy()
 
@@ -1015,11 +1021,11 @@ def write_drainage_paths(geodesicPathsCellList):
     # set up the shapefile driver
     driver = ogr.GetDriverByName(Parameters.driverName)
     # This will delete and assist in overwrite of the shape files
-    if os.path.exists(Parameters.drainageFileName):
-        driver.DeleteDataSource(Parameters.drainageFileName)
+    if os.path.exists(Parameters.drainagelineFileName):
+        driver.DeleteDataSource(Parameters.drainagelineFileName)
     
     # create the data source
-    data_source = driver.CreateDataSource(Parameters.drainageFileName)
+    data_source = driver.CreateDataSource(Parameters.drainagelineFileName)
     
     # create the spatial reference, same as the input dataset
     srs = osr.SpatialReference()
@@ -1029,7 +1035,7 @@ def write_drainage_paths(geodesicPathsCellList):
     srs.ImportFromWkt(georef)
     
     # create the layer
-    layer = data_source.CreateLayer(Parameters.drainagefileName,\
+    layer = data_source.CreateLayer(Parameters.drainagelinefileName,\
                                     srs, ogr.wkbLineString)
     
     # Add the fields we're interested in
@@ -1043,8 +1049,7 @@ def write_drainage_paths(geodesicPathsCellList):
     
     layer.CreateField(ogr.FieldDefn("Latitude", ogr.OFTReal))
     layer.CreateField(ogr.FieldDefn("Longitude", ogr.OFTReal))
-    tmpfname = Parameters.demFileName
-
+    
     # Now add the channel heads as features to the layer
     print len(geodesicPathsCellList)
     for i in xrange(0,len(geodesicPathsCellList)):
@@ -1061,7 +1066,7 @@ def write_drainage_paths(geodesicPathsCellList):
         feature = ogr.Feature(layer.GetLayerDefn())
         # Set the attributes using the values
         feature.SetField("Name", 'ChannelNetwork')
-        feature.SetField("Region", 'ikawa')
+        feature.SetField("Region", Parameters.Region)
         # create the WKT for the feature using Python string formatting
         line = ogr.Geometry(ogr.wkbLineString)            
         for j in xrange(0,len(xxProj)):
@@ -1212,7 +1217,7 @@ def main():
     print curvatureDemArray.shape
     # Writing the curvature array
     # inputArray = curvatureDemArray
-    outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
+    outfilepath = Parameters.geonetResultsDir
     outfilename = Parameters.demFileName
     outfilename = outfilename.split('.')[0]+'_curvature.tif'
     write_geotif_generic(curvatureDemArray,outfilepath,outfilename)
@@ -1338,7 +1343,7 @@ def main():
         plt.show()
     
     # Writing the skeletonFromFlowAndCurvatureArray array
-    outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
+    outfilepath = Parameters.geonetResultsDir
     outfilename = Parameters.demFileName
     outfilename = outfilename.split('.')[0]+'_skeleton.tif'
     write_geotif_generic(skeletonFromFlowAndCurvatureArray.T,\
@@ -1365,7 +1370,7 @@ def main():
               '@ : ',fastMarchingStartPointList[:,label],' #Elements ',len(numelments),\
               ' area ',percentBasinArea,' %'
         if percentBasinArea > defaults.thresholdPercentAreaForDelineation and\
-           len(numelments) > 6:
+           len(numelments) > Parameters.numBasinsElements:
             # Get the watersheds used
             basinsUsedIndexList[label]= label
             # Preparing the outlets used for fast marching in ROI
@@ -1444,7 +1449,7 @@ def main():
     print '1/cost max: ', np.nanmax(reciprocalLocalCostArray[:])
 
     # Writing the reciprocal array
-    outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
+    outfilepath = Parameters.geonetResultsDir
     outfilename = Parameters.demFileName
     outfilename = outfilename.split('.')[0]+'_costfunction.tif'
     write_geotif_generic(reciprocalLocalCostArray,outfilepath,outfilename)
@@ -1541,7 +1546,7 @@ def main():
     
     print geodesicDistanceArray.shape
     # Writing the geodesic distance array
-    outfilepath = 'C:\\Mystuff\\grassgisdatabase\\'
+    outfilepath = Parameters.geonetResultsDir
     outfilename = Parameters.demFileName
     outfilename = outfilename.split('.')[0]+'_geodesicDistance.tif'
     write_geotif_generic(geodesicDistanceArray,outfilepath,outfilename)
