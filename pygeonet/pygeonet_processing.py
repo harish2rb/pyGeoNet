@@ -18,6 +18,7 @@ from scipy import stats
 import skfmm
 from scipy import ndimage
 import numpy.ma as npma
+import shutil
 
 # ----------- GRASS GIS SETUP ------------------
 #setting up the environment for grass gis access
@@ -655,8 +656,11 @@ def flowaccumulation(filteredDemArray):
     # basin Index that will be used for FM marching
     #"""
     #outletFac = []
+    
     print 'using: r.water.outlet'
     nanDemArrayfacT = nanDemArrayfac.T
+    allbasins  = np.zeros((nanDemArrayfacT.shape))
+    
     for op in range(0,len(outletsxxProj)):
         east = outletsxxProj[op]
         north = outletsyyProj[op]
@@ -672,21 +676,22 @@ def flowaccumulation(filteredDemArray):
                         output='C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'+\
                         outputoneBAS_filename,\
                         format='GTiff')
-
-    # print g.read_command('g.list', _type='rast')
-    allbasins  = np.zeros((nanDemArrayfacT.shape))
-    #print outletFac    
-    
-    # Read big basin files
-    for op in range(1,len(outletsxxProj)):
+        
+        # Read big basin files
         bigbasintif = 'C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'+\
-                      geotiffmapraster+'_onebasins_'+str(op)+'.tif'
+                      geotiffmapraster+'_onebasins_'+str(op+1)+'.tif'
         dsbasin = gdal.Open(bigbasintif, gdal.GA_ReadOnly)
         arybasin = dsbasin.GetRasterBand(1).ReadAsArray()
         nanDemArrayBasins=np.array(arybasin)
         nanDemArrayBasinsT = nanDemArrayBasins.T
         allbasins[nanDemArrayBasinsT==1]=op
         dsbasin = None
+        # After reading delete the tiff file to save disk space
+        print 'removing raster from GRASS Mapset:'
+        basintodelName = 'oneoutletbasin'+str(op+ 1)
+        print g.run_command('g.remove',flags='f',rast=basintodelName)
+        print 'removing temp tiff file from Disk'
+        os.remove(bigbasintif)
     
     #"""
     return {'outlets':outlets, 'fac':nanDemArrayfac ,\
@@ -1003,7 +1008,77 @@ def write_channel_heads(xx,yy):
     # Destroy the data source to free resources
     data_source.Destroy()
 
+# Writing drainage paths as shapefile
+def write_drainage_paths(geodesicPathsCellList):
+    print 'Writing drainage paths'
+    #print geodesicPathsCellList
+    # set up the shapefile driver
+    driver = ogr.GetDriverByName(Parameters.driverName)
+    # This will delete and assist in overwrite of the shape files
+    if os.path.exists(Parameters.drainageFileName):
+        driver.DeleteDataSource(Parameters.drainageFileName)
+    
+    # create the data source
+    data_source = driver.CreateDataSource(Parameters.drainageFileName)
+    
+    # create the spatial reference, same as the input dataset
+    srs = osr.SpatialReference()
+    gtf = Parameters.geotransform
+    georef = Parameters.inputwktInfo
+    
+    srs.ImportFromWkt(georef)
+    
+    # create the layer
+    layer = data_source.CreateLayer(Parameters.drainagefileName,\
+                                    srs, ogr.wkbLineString)
+    
+    # Add the fields we're interested in
+    field_name = ogr.FieldDefn("Name", ogr.OFTString)
+    field_name.SetWidth(24)
+    layer.CreateField(field_name)
+    
+    field_region = ogr.FieldDefn("Region", ogr.OFTString)
+    field_region.SetWidth(24)
+    layer.CreateField(field_region)
+    
+    layer.CreateField(ogr.FieldDefn("Latitude", ogr.OFTReal))
+    layer.CreateField(ogr.FieldDefn("Longitude", ogr.OFTReal))
+    tmpfname = Parameters.demFileName
 
+    # Now add the channel heads as features to the layer
+    print len(geodesicPathsCellList)
+    for i in xrange(0,len(geodesicPathsCellList)):
+        #print geodesicPathsCellList[i]
+        # Project the linepoints to appropriate projection
+        xx = geodesicPathsCellList[i][0]
+        yy = geodesicPathsCellList[i][1]
+        # Project the xx, and yy points
+        xxProj = float(gtf[0])+ \
+                    float(gtf[1]) * np.array(xx)
+        yyProj = float(gtf[3])+ \
+                    float(gtf[5])*np.array(yy)
+        # create the feature
+        feature = ogr.Feature(layer.GetLayerDefn())
+        # Set the attributes using the values
+        feature.SetField("Name", 'ChannelNetwork')
+        feature.SetField("Region", 'ikawa')
+        # create the WKT for the feature using Python string formatting
+        line = ogr.Geometry(ogr.wkbLineString)            
+        for j in xrange(0,len(xxProj)):
+            #print xxProj[j],yyProj[j]
+            line.AddPoint(xxProj[j],yyProj[j])
+        #print line
+        # Create the point from the Well Known Txt
+        #lineobject = line.ExportToWkt()
+        # Set the feature geometry using the point
+        feature.SetGeometryDirectly(line)
+        # Create the feature in the layer (shapefile)
+        layer.CreateFeature(feature)
+        # Destroy the feature to free resources
+        feature.Destroy()
+    # Destroy the data source to free resources
+    data_source.Destroy()   
+    
 
 #---------------------------------------------------------------------------------
 #------------------- MAIN FUNCTION--------------------------------------------------
@@ -1619,10 +1694,11 @@ def main():
     
     # Write shapefiles of channel heads
     write_channel_heads(xx,yy)
-    plt.show()
+    #plt.show()
 
     # Write stream network as shapefiles
-    
+    write_drainage_paths(geodesicPathsCellList)
+    print 'Finished pyGeoNet'
     
 
     
