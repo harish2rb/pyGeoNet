@@ -1557,8 +1557,9 @@ def main():
     print xySkeletonSize
     skeletonLabeledArray, skeletonNumConnectedComponentsList =\
                           ndimage.label(skeletonFromFlowAndCurvatureArray)
-    #print skeletonLabeledArray, skeletonNumConnectedComponentsList
-    #print np.unique(skeletonLabeledArray)
+    print skeletonLabeledArray, skeletonNumConnectedComponentsList
+    print np.unique(skeletonLabeledArray)
+    
     """
      Through the histogram of skeletonNumElementsSortedList (skeletonNumElementsList minus the maximum value which
        corresponds to the largest connected element of the skeleton) we get the
@@ -1567,16 +1568,32 @@ def main():
        excluded from the search of end points.
     """
     print 'Counting the number of elements of each connected component'
+    skeletonNumElementsListTemp = []
+    for i in range(1,skeletonNumConnectedComponentsList):
+        skeletonNumElementsListTemp.append(np.size(np.where(skeletonLabeledArray == i)))
+    #print skeletonNumElementsListTemp
+    #"""
     skeletonNumElementsList = ndimage.measurements.histogram(skeletonLabeledArray, 1, \
                 skeletonNumConnectedComponentsList, \
                 bins = skeletonNumConnectedComponentsList,\
                 labels=None)
-    skeletonNumElementsSortedList = np.sort(skeletonNumElementsList)
+    #"""
+    skeletonNumElementsSortedList = np.sort(skeletonNumElementsListTemp)
+    #skeletonNumElementsList = np.array(skeletonNumElementsListTemp)
     
     histarray,skeletonNumElementsHistogramX=np.histogram(\
         skeletonNumElementsSortedList[1:len(skeletonNumElementsSortedList)-1],
         np.sqrt(len(skeletonNumElementsSortedList)))
+
+    defaults.figureNumber = defaults.figureNumber + 1
+    plt.figure(defaults.figureNumber)
+    plt.imshow(skeletonLabeledArray.T,cmap=cm.coolwarm)
+    plt.title('Skeleton Labeled Array elements Array')
+    plt.colorbar()
+    if defaults.doPlot==1:
+        plt.show()
     
+    #stop
     # Create skeleton gridded array
     skeletonNumElementsGriddedArray = np.zeros(xySkeletonSize)
     #"""
@@ -1703,6 +1720,7 @@ def main():
 
     # Write stream network as shapefiles
     write_drainage_paths(geodesicPathsCellList)
+    #plt.show()
     print 'Finished pyGeoNet'
     
 
@@ -1712,6 +1730,7 @@ if __name__ == '__main__':
     main()
     t1 = clock()
     print "time taken to complete the script is::",t1-t0," seconds"
+    plt.show()
     print "script complete"
 
 
