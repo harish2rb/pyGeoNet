@@ -25,7 +25,7 @@ import shutil
 """
 # The below grass script will work assuming you have installed
 # Grass GIS 7 on your machine and that the required environment
-# variables are set on windows /linux as required
+# variables are set on windows as required
 
 """
 sys.path.append(os.path.join(os.environ['GISBASE'], "etc", "python"))
@@ -1338,7 +1338,7 @@ def main():
     plt.plot(outletPointsList[0],outletPointsList[1],'go')
     plt.xlabel('X[m]')
     plt.ylabel('Y[m]')
-    plt.title('Curvetaure with outlets')
+    plt.title('Curvature with outlets')
     if defaults.doPlot==1:
         plt.show()
     
@@ -1464,7 +1464,7 @@ def main():
     print reciprocalLocalCostArray.shape
     #stop
 
-    #plt.show()
+    plt.show()
     # Do fast marching for each sub basin
     geodesicDistanceArray = np.zeros((basinIndexArray.shape))
     geodesicDistanceArray[geodesicDistanceArray==0]=np.Inf
@@ -1504,8 +1504,7 @@ def main():
         #travelTimearray = skfmm.travel_time(distancearray, speed, dx=1)
         try:
             travelTimearray = skfmm.travel_time(phi,speed, dx=1)
-        except IOError as e:
-            
+        except IOError as e:            
             print 'Error in calculating skfmm travel time'
             print 'Error in catchment: ',basinIndexList
             # setting travel time to empty array
@@ -1561,11 +1560,12 @@ def main():
     print np.unique(skeletonLabeledArray)
     
     """
-     Through the histogram of skeletonNumElementsSortedList (skeletonNumElementsList minus the maximum value which
-       corresponds to the largest connected element of the skeleton) we get the
-       size of the smallest elements of the skeleton, which will likely
-       correspond to small isolated convergent areas. These elements will be
-       excluded from the search of end points.
+     Through the histogram of skeletonNumElementsSortedList
+     (skeletonNumElementsList minus the maximum value which
+      corresponds to the largest connected element of the skeleton) we get the
+      size of the smallest elements of the skeleton, which will likely
+      correspond to small isolated convergent areas. These elements will be
+      excluded from the search of end points.
     """
     print 'Counting the number of elements of each connected component'
     skeletonNumElementsListTemp = []

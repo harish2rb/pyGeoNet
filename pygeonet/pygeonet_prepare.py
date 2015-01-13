@@ -8,7 +8,7 @@ import os
 currentWorkingDir = os.getcwd()
 geoNetHomeDir = "C:\\Mystuff\\IO_Data\\"
 demDataFilePath =  geoNetHomeDir +"data\\"
-demFileName = "ikawa_roi1_nutm54_clipped.tif"
+demFileName = "skunk.tif"#"ikawa_roi1_nutm54_clipped.tif"
 Region = demFileName.split(".")[0]
 geonetResultsDir = 'C:\\Mystuff\\grassgisdatabase\\'
 geonetResultsBasinDir='C:\\Mystuff\\grassgisdatabase\\basinTiffs\\'
