@@ -8,5 +8,7 @@ The algorithm remains the same in this version, but the python implementation dr
 builds code from a variety of open sources libraries.
 
 This is work in progress and will be ready for release soon
+More updates on installation and usage can be found here:
+http://harish2rb.github.io/pyGeoNet/
 
 
