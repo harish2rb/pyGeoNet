@@ -26,17 +26,16 @@ values than GeoNet[MATLAB].
 5. The fast marching algorithm used for computing geodesics is also different.
 pyGeoNet uses scikit-skfmm library to compute the cost function.
 
+***********************************************
 Known limitations and open issues.
-1. This is identified within GeoNet as the deviation point from a qqplot and
-should be done the same in python.. Couldn't find a easy way to do it in
-python.. but hoping I will solve in beta 2.0 release.
+***********************************************
+1. Thresholdqxx = 1: This is identified within GeoNet as the deviation point
+from a qqplot and should be done the same in python.. Couldn't find a easy
+way to do it in python.. but hoping I will solve in beta 2.0 release.
 
 2. The skeleton threshold used to remove rouge skeleton pixels is also not
 the same as in GeoNet. This is more of a bug in pyGeoNet rather than a
 difference.
-
-
-
 
 
 """
