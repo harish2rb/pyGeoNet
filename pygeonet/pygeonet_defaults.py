@@ -1,17 +1,21 @@
 ## Set default parameters for GeoNet
 
-# Deleting geonet grass location
+# Setting up Geonet grass location
 import shutil
 import os
 
-print "Cleaning existing Grass location"
+
 grassGISlocation = 'C:\\Users\\Harish\\Documents\\grassdata\\geonet'
 if os.path.exists(grassGISlocation):
+    print "Cleaning existing Grass location"
     shutil.rmtree(grassGISlocation)
 
-print "Cleaning basinTiffs"
+
 dirpath = "C:\\Mystuff\\grassgisdatabase\\basinTiffs"
-shutil.rmtree(dirpath)
+if os.path.exists(dirpath):
+   print "Cleaning old basinTiffs"
+   shutil.rmtree(dirpath)
+
 print "Making basinTiffs"
 os.mkdir(dirpath)
 
@@ -21,17 +25,11 @@ doReport=1
 doPlot=0
 doResetFiguresOnStart=1
 
-# **** Default is to output GeoNet results into the same folder as this
-#  script - edit if you wish to place them elsewhere
-#fileOutputPath=fullfile(pwd)
-
-# **** Edit to match the DEM projection - so far only UTM is supported
-demUtmZone=54
 
 # **** Default Parameters for Perona-Malik nonlinear diffusion
-diffusionMethod='PeronaMalik2'
 # ... could be:  PeronaMalik1, PeronaMalik2, Tukey, rampPreserving
-diffusionTimeIncrement=0.1
+diffusionMethod='PeronaMalik2'
+diffusionTimeIncrement=0.1 # this makes the explicit scheme stable
 diffusionSigmaSquared=0.05
 nFilterIterations=50 # Nonlinear filtering iterations
 
