@@ -1,5 +1,8 @@
 """
-pyGeoNet
+pyGeoNet v0.1
+Author: Harish Sangireddy
+email: harish2rb@gmail.com
+
 
 This is the python implementation of GeoNet originally written in MATLAB
 and maintained at https://sites.google.com/site/geonethome/ 
@@ -23,13 +26,17 @@ values than GeoNet[MATLAB].
 5. The fast marching algorithm used for computing geodesics is also different.
 pyGeoNet uses scikit-skfmm library to compute the cost function.
 
-6. The skeleton threshold used to remove rouge skeleton pixels is also not
+Known limitations and open issues.
+1. This is identified within GeoNet as the deviation point from a qqplot and
+should be done the same in python.. Couldn't find a easy way to do it in
+python.. but hoping I will solve in beta 2.0 release.
+
+2. The skeleton threshold used to remove rouge skeleton pixels is also not
 the same as in GeoNet. This is more of a bug in pyGeoNet rather than a
 difference.
 
 
-Author: Harish Sangireddy
-email: harish2rb@gmail.com
+
 
 
 """
