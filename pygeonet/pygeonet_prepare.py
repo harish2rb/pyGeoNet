@@ -1,4 +1,6 @@
+#! /usr/bin/env python
 import os
+import shutil
 
 """
 Folder structure for pyGeoNet is as follows
@@ -57,4 +59,18 @@ gisdbdir = 'C:\\Users\\Harish\\Documents\\grassdata'
 
 # Skfmm parameters
 numBasinsElements = 2
+
+#'C:\\Users\\Harish\\Documents\\grassdata\\geonet'
+grassGISlocation = gisdbdir+"\\geonet"
+if os.path.exists(grassGISlocation):
+    print "Cleaning existing Grass location"
+    shutil.rmtree(grassGISlocation)
+
+#"C:\\Mystuff\\grassgisdatabase\\basinTiffs"
+if os.path.exists(geonetResultsBasinDir):
+   print "Cleaning old basinTiffs"
+   shutil.rmtree(geonetResultsBasinDir)
+
+print "Making basinTiffs"
+os.mkdir(geonetResultsBasinDir)
 

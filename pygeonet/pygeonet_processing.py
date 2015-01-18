@@ -11,8 +11,8 @@ from osgeo import gdal,osr,ogr
 import statsmodels.api as sm
 import numpy as np
 from time import clock
-import pygeonet_defaults as defaults
 import pygeonet_prepare as Parameters
+import pygeonet_defaults as defaults
 from math import modf, floor
 import matplotlib.pyplot as plt
 from matplotlib import cm

@@ -1,23 +1,27 @@
+#! /usr/bin/env python
 ## Set default parameters for GeoNet
 
 # Setting up Geonet grass location
 import shutil
 import os
+import pygeonet_prepare as Parameters
 
-
-grassGISlocation = 'C:\\Users\\Harish\\Documents\\grassdata\\geonet'
+"""
+#'C:\\Users\\Harish\\Documents\\grassdata\\geonet'
+grassGISlocation = Parameters.gisdbdir+"\\geonet"
 if os.path.exists(grassGISlocation):
     print "Cleaning existing Grass location"
     shutil.rmtree(grassGISlocation)
 
-
-dirpath = "C:\\Mystuff\\grassgisdatabase\\basinTiffs"
+#"C:\\Mystuff\\grassgisdatabase\\basinTiffs"
+dirpath = Parameters.geonetResultsBasinDir
 if os.path.exists(dirpath):
    print "Cleaning old basinTiffs"
    shutil.rmtree(dirpath)
 
 print "Making basinTiffs"
 os.mkdir(dirpath)
+"""
 
 # Reporting, plotting and file handling
 doFileOutput=1
