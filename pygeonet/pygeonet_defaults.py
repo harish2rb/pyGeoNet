@@ -64,7 +64,7 @@ doNormalizeCurvature=1
 reciprocalLocalCostMinimum='nan'
 
 # What proportion of the DEM should we track drainage?
-thresholdPercentAreaForDelineation=0.0
+thresholdPercentAreaForDelineation=0.01
 demNanFlag=-9999#3.402823e+038
 demErrorFlag=-9999#3.402823e+038
 

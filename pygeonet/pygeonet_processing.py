@@ -1,12 +1,10 @@
 #! /usr/bin/env python
 # pygeonet_processing.py
-# 
+# Run this file after setting up folder structure in pygeonet_parameters.py
 
 
-# pyGeoNet_readGeotiff
 import sys
 import os
-
 from osgeo import gdal,osr,ogr
 import statsmodels.api as sm
 import numpy as np
@@ -30,7 +28,8 @@ import shutil
 """
 # The below grass script will work assuming you have installed
 # Grass GIS 7 on your machine and that the required environment
-# variables are set on windows as required
+# variables are set on windows as required.
+This has not been tested on linux machines yet.
 
 """
 sys.path.append(os.path.join(os.environ['GISBASE'], "etc", "python"))
@@ -41,14 +40,14 @@ import grass.script.setup as gsetup
 def read_dem_from_geotiff(demFileName,demFilePath):
     # Open the GeoTIFF format DEM
     fullFilePath = demFilePath + demFileName
-    print fullFilePath
+    #print fullFilePath
     ary = []
     gdal.UseExceptions()
     ds = gdal.Open(fullFilePath, gdal.GA_ReadOnly)
     Parameters.driver = ds.GetDriver()
     geotransform = ds.GetGeoTransform()
     Parameters.geotransform = geotransform
-    #'''
+    '''
     print 'Driver: ', ds.GetDriver().ShortName,'/', \
           ds.GetDriver().LongName
     print 'Size is ',ds.RasterXSize,'x',ds.RasterYSize, \
@@ -1158,19 +1157,22 @@ def main():
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayQ[~np.isnan(slopeMagnitudeDemArrayQ)]
     print 'dem smoothing Quantile',defaults.demSmoothingQuantile
 
+    """
     edgeThresholdValue = quantile(np.absolute(slopeMagnitudeDemArrayQ),\
                                   defaults.demSmoothingQuantile)
     print 'edgeThresholdValue :', edgeThresholdValue
-
-    tempArray = np.reshape(slopeMagnitudeDemArrayNp,np.size(slopeMagnitudeDemArrayNp))
+    """
     edgeThresholdValuescipy = mquantiles(np.absolute(slopeMagnitudeDemArrayQ),\
                                          defaults.demSmoothingQuantile)
     print 'edgeThresholdValuescipy :', edgeThresholdValuescipy
-
+    
+    """
+    #tempArray = np.reshape(slopeMagnitudeDemArrayNp,np.size(slopeMagnitudeDemArrayNp))
     edgeThresholdValueasmatlab = quantileasmatlab(np.absolute(tempArray),\
                                                   defaults.demSmoothingQuantile)
     print 'edgeThresholdValueasmatlab :', edgeThresholdValueasmatlab
-
+    """
+    
     # performing Perona-Malik filtering
     print 'Performing Perona-Malik nonlinear filtering'
     filteredDemArray = geonet_diffusion (nanDemArray,\
@@ -1219,9 +1221,9 @@ def main():
     curvatureDemArray = compute_dem_curvature(curvatureDemArrayIn,\
                                               Parameters.demPixelScale,\
                                               defaults.curvatureCalcMethod)
-    print curvatureDemArray.shape
-    # Writing the curvature array
-    # inputArray = curvatureDemArray
+    #print curvatureDemArray.shape
+    #Writing the curvature array
+    #inputArray = curvatureDemArray
     outfilepath = Parameters.geonetResultsDir
     outfilename = Parameters.demFileName
     outfilename = outfilename.split('.')[0]+'_curvature.tif'
@@ -1251,7 +1253,7 @@ def main():
     if defaults.doPlot==1:
         plt.show()
     
-    #stop
+    #*************************************************
     #Compute curvature quantile-quantile curve
     # This seems to take a long time ... is commented for now
     print 'Computing curvature quantile-quantile curve'
@@ -1262,7 +1264,7 @@ def main():
     # have to add method to automatically compute the thresold
     # .....
     # .....
-    
+    #*************************************************
    
 
     # Computing contributing areas
@@ -1385,9 +1387,7 @@ def main():
         # finishing Making outlets for FMM
     #Closing Basin area computation
     #print fastMarchingStartPointListFMM
-
     #print fastMarchingStartPointListFMM.shape
-
     #print fastMarchingStartPointListFMMx
     #print fastMarchingStartPointListFMMy
 
