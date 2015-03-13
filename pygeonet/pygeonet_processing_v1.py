@@ -70,149 +70,32 @@ def read_dem_from_geotiff(demFileName,demFilePath):
     
     return ary
 
-def quantileasmatlab(a, prob):
-    """
-    Estimates the prob'th quantile of the values in a data array.
-
-    Uses the algorithm of matlab's quantile(), namely:
-        - Remove any nan values
-        - Take the sorted data as the (.5/n), (1.5/n), ..., (1-.5/n) quantiles.
-        - Use linear interpolation for values between (.5/n) and (1 - .5/n).
-        - Use the minimum or maximum for quantiles outside that range.
-
-    See also: scipy.stats.mstats.mquantiles
-    """
-    a = np.asanyarray(a)
-    a = a[np.logical_not(np.isnan(a))].ravel()
-    n = a.size
-
-    if prob >= 1 - .5/n:
-        return a.max()
-    elif prob <= .5 / n:
-        return a.min()
-
-    # find the two bounds we're interpreting between:
-    # that is, find i such that (i+.5) / n <= prob <= (i+1.5)/n
-    t = n * prob - .5
-    i = np.floor(t)
-
-    # partial sort so that the ith element is at position i, with bigger ones
-    # to the right and smaller to the left
-    a = bn.partsort(a, i)
-
-    if i == t: # did we luck out and get an integer index?
-        return a[i]
-    else:
-        # we'll linearly interpolate between this and the next index
-        smaller = a[i]
-        larger = a[i+1:].min()
-        if np.isinf(smaller):
-            return smaller # avoid inf - inf
-        return smaller + (larger - smaller) * (t - i)
-
-
-def quantile(x, q,  qtype = 7, issorted = False):
-	"""
-	Args:
-	   x - input data
-	   q - quantile
-	   qtype - algorithm
-	   issorted- True if x already sorted.
-
-	Compute quantiles from input array x given q.For median,
-	specify q=0.5.
-
-	References:
-	   http://reference.wolfram.com/mathematica/ref/Quantile.html
-	   http://wiki.r-project.org/rwiki/doku.php?id=rdoc:stats:quantile
-
-	Author:
-	Ernesto P.Adorio Ph.D.
-	UP Extension Program in Pampanga, Clark Field.
-	"""
-	if not issorted:
-		y = sorted(x)
-	else:
-		y = x
-	if not (1 <= qtype <= 9):
-	   return None  # error!
-
-	# Parameters for the Hyndman and Fan algorithm
-	abcd = [(0,   0, 1, 0), # inverse empirical distrib.function., R type 1
-			(0.5, 0, 1, 0), # similar to type 1, averaged, R type 2
-			(0.5, 0, 0, 0), # nearest order statistic,(SAS) R type 3
-
-			(0,   0, 0, 1), # California linear interpolation, R type 4
-			(0.5, 0, 0, 1), # hydrologists method, R type 5
-			(0,   1, 0, 1), # mean-based estimate(Weibull method), (SPSS,Minitab), type 6
-			(1,  -1, 0, 1), # mode-based method,(S, S-Plus), R type 7
-			(1.0/3, 1.0/3, 0, 1), # median-unbiased ,  R type 8
-			(3/8.0, 0.25, 0, 1)   # normal-unbiased, R type 9.
-		   ]
-
-	a, b, c, d = abcd[qtype-1]
-	n = len(x)
-	g, j = modf( a + (n+b) * q -1)
-	if j < 0:
-		return y[0]
-	elif j >= n:
-		return y[n-1]   # oct. 8, 2010 y[n]???!! uncaught  off by 1 error!!!
-
-	j = int(floor(j))
-	if g ==  0:
-	   return y[j]
-	else:
-	   return y[j] + (y[j+1]- y[j])* (c + d * g)
-
 def simple_gaussian_smoothing(inputDemArray,kernelWidth,diffusionSigmaSquared):
     """
     smoothing input array with gaussian
     Code is vectorized for efficiency Harish Sangireddy
     """
     [Ny,Nx]=inputDemArray.shape;
-    #print Ny,Nx
     halfKernelWidth=(kernelWidth-1)/2;
-    #print "halfKernelWidth",halfKernelWidth
     # Make a ramp array with 5 rows each containing [-2, -1, 0, 1, 2]
     x = np.linspace(-halfKernelWidth, halfKernelWidth, kernelWidth)
-    #x= np.ones((kernelWidth,1))* range(-halfKernelWidth,halfKernelWidth+1)
-    #y=x.T
     y = x
     xv,yv = np.meshgrid(x,y)
     gaussianFilter = np.exp(-(xv**2+yv**2)/(2*diffusionSigmaSquared))  # 2D Gaussian
-    #print "gaussianFilter", gaussianFilter
     gaussianFilter=gaussianFilter/np.sum(gaussianFilter[:]) # Normalize
-    #print inputDemArray[:,0:halfKernelWidth]
     xL= np.nanmean(inputDemArray[:,0:halfKernelWidth],axis=1)
-    #xL = np.matrix(xL)
     xR= np.nanmean(inputDemArray[:,Nx-halfKernelWidth:Nx],axis =1)
-    #xR = np.matrix(xR)
-    #print "xR",xR.shape
     part1T = np.vstack((xL,xL))
     part1 = part1T.T
-    #part1 = xL * np.matrix(np.ones((1,halfKernelWidth)))
     part2T = np.vstack((xR,xR))
     part2 = part2T.T
-    #part2 = xR * np.matrix(np.ones((1,halfKernelWidth)))
-    #print part1.shape, part2.shape
     eI = np.hstack((part1,inputDemArray,part2))
-    #eI= np.matrix(np.concatenate((part1,inputDemArray,part2),1))
-    #print 'eI',eI.shape
     xU= np.nanmean(eI[0:halfKernelWidth,:],axis=0)
-    #xU = np.matrix(xU)
-    #print "xU",xU.shape
     xD= np.nanmean(eI[Ny-halfKernelWidth:Ny,:],axis =0)
-    #xD = np.matrix(xD)
-    #print "xD",xD.shape
     part3 = np.vstack((xU,xU))
     part4 = np.vstack((xD,xD))
-    #print part3.shape, part4.shape
-    #part3 = np.matrix(np.ones((halfKernelWidth,1)))*xU
-    #part4 = np.matrix(np.ones((halfKernelWidth,1)))*xD
     # Generate the expanded DTM array, 4 pixels wider in both x,y directions
     eI = np.vstack((part3,eI,part4))
-    #eI= np.matrix(np.concatenate((part3, eI, part4),0))
-    #print 'eI',eI.shape
     # The 'valid' option forces the 2d convolution to clip 2 pixels off the edges
     # NaNs spread from one pixel to a 5x5 set centered on the NaN
     #smoothedDemArray=conv2.convolve2d(eI,gaussianFilter,'valid'); # original
@@ -220,13 +103,51 @@ def simple_gaussian_smoothing(inputDemArray,kernelWidth,diffusionSigmaSquared):
     smoothedDemArray=conv2.convolve2d(eI,gaussianFilter,'valid')
     return smoothedDemArray
 
+def anisodiff(img,niter,kappa,gamma,step=(1.,1.),option=2):
+    # initialize output array
+    img = img.astype('float32')
+    imgout = img.copy()
+    # initialize some internal variables
+    deltaS = np.zeros_like(imgout)
+    deltaE = deltaS.copy()
+    NS = deltaS.copy()
+    EW = deltaS.copy()
+    gS = np.ones_like(imgout)
+    gE = gS.copy()
+    for ii in xrange(niter):
+        # do a simple gaussian smoothing
+        #imgout = simple_gaussian_smoothing(imgout,5,\
+        #                                   defaults.diffusionSigmaSquared)
+        # calculate the diffs
+        deltaS[:-1,: ] = np.diff(imgout,axis=0)
+        deltaE[: ,:-1] = np.diff(imgout,axis=1)
+        if option == 2:
+            gS = 1./(1.+(deltaS/kappa)**2.)/step[0]
+            gE = 1./(1.+(deltaE/kappa)**2.)/step[1]
+        elif option == 1:
+            gS = np.exp(-(deltaS/kappa)**2.)/step[0]
+            gE = np.exp(-(deltaE/kappa)**2.)/step[1]
+        # update matrices
+        E = gE*deltaE
+        S = gS*deltaS
+        # subtract a copy that has been shifted 'North/West' by one
+        # pixel. don't as questions. just do it. trust me.
+        NS[:] = S
+        EW[:] = E
+        NS[1:,:] -= S[:-1,:]
+        EW[:,1:] -= E[:,:-1]
+        # update the image
+        imgout += gamma*(NS+EW)
+    
+    return imgout
+
 
 def geonet_diffusion(demArray, diffusionMethod, nFilterIterations,\
     edgeThreshold, diffusionTimeIncrement, diffusionSigmaSquared, pixelSize):
     """
-	References:
-	   Based on diffusion() by Guy Gilboa
-	   Code imported from GeoNet2.1 by Harish Sangireddy June 2014
+    References:
+       Based on diffusion() by Guy Gilboa
+       Code imported from GeoNet2.1 by Harish Sangireddy June 2014
     """
     print 'Performing Perona Malik'
     print diffusionMethod, nFilterIterations,edgeThreshold, \
@@ -414,43 +335,6 @@ def write_geotif_filteredDEM(filteredDemArray,filepath,filename):
     outRasterSRS.ImportFromEPSG(int(authoritycode))
     outDs.SetProjection(outRasterSRS.ExportToWkt())
     outband.FlushCache()
-    #stop
-    
-
-    """
-    # Sine the above raster is not north up, we need to write it
-    # again so that grass gis can read it properly
-    # this needs to be done for the filtered DEM only
-    fullFilePath = output_fileName
-    dataset1 = gdal.Open(fullFilePath, gdal.GA_ReadOnly)
-    output_fileName1 = "C:\\Mystuff\\grassgisdatabase\\PM_filtered_grassgis.tif"
-    ncols = dataset1.RasterXSize
-    nrows = dataset1.RasterYSize
-    # create the output image
-    driver = dataset1.GetDriver()
-
-    #print driver
-    outDs = driver.Create(output_fileName1,ncols,nrows,1, gdal.GDT_Float32)
-    if outDs is None:
-        print 'Could not create reclass_40.tif'
-        sys.exit(1)
-    outBand = outDs.GetRasterBand(1)
-    outData = dataset1.GetRasterBand(1).ReadAsArray()
-    nanDemArray1=np.array(outData.T)
-    # flush data to disk, set the NoData value and calculate stats
-    outBand.FlushCache()
-    outBand.SetNoDataValue(-9999)
-
-    # georeference the image and set the projection
-    geotransform = dataset1.GetGeoTransform()
-    cc1 = (geotransform[0],geotransform[1],geotransform[2],\
-          geotransform[3],geotransform[4],-geotransform[5])
-    outDs.SetGeoTransform(cc1)
-    outDs.SetProjection(dataset1.GetProjection())
-
-    # write the data as per grass gis
-    outBand.WriteArray(nanDemArray1)
-    #"""
     # finishing the writing of filtered DEM
     del outDs, outband, driver,outRasterSRS
     #del dataset, outData,outDs,outBand
@@ -1158,29 +1042,24 @@ def main():
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayQ[~np.isnan(slopeMagnitudeDemArrayQ)]
     print 'dem smoothing Quantile',defaults.demSmoothingQuantile
 
-    """
-    edgeThresholdValue = quantile(np.absolute(slopeMagnitudeDemArrayQ),\
-                                  defaults.demSmoothingQuantile)
-    print 'edgeThresholdValue :', edgeThresholdValue
-    """
     edgeThresholdValuescipy = mquantiles(np.absolute(slopeMagnitudeDemArrayQ),\
                                          defaults.demSmoothingQuantile)
     print 'edgeThresholdValuescipy :', edgeThresholdValuescipy
     
-    """
-    #tempArray = np.reshape(slopeMagnitudeDemArrayNp,np.size(slopeMagnitudeDemArrayNp))
-    edgeThresholdValueasmatlab = quantileasmatlab(np.absolute(tempArray),\
-                                                  defaults.demSmoothingQuantile)
-    print 'edgeThresholdValueasmatlab :', edgeThresholdValueasmatlab
-    """
-    
-    # performing Perona-Malik filtering
+    # performing PM filtering using the anisodiff
     print 'Performing Perona-Malik nonlinear filtering'
-    filteredDemArray = geonet_diffusion (nanDemArray,\
-    defaults.diffusionMethod,\
-    defaults.nFilterIterations, edgeThresholdValuescipy,\
-    defaults.diffusionTimeIncrement,\
-    defaults.diffusionSigmaSquared, 1+0*Parameters.demPixelScale);
+    filteredDemArray = anisodiff(nanDemArray, defaults.nFilterIterations, \
+                                     edgeThresholdValuescipy,\
+                                     defaults.diffusionTimeIncrement, \
+                                     (Parameters.demPixelScale,\
+                                      Parameters.demPixelScale),2)
+    # performing Perona-Malik filtering
+    #print 'Performing Perona-Malik nonlinear filtering'
+    #filteredDemArray = geonet_diffusion (nanDemArray,\
+    #defaults.diffusionMethod,\
+    #defaults.nFilterIterations, edgeThresholdValuescipy,\
+    #defaults.diffusionTimeIncrement,\
+    #defaults.diffusionSigmaSquared, 1+0*Parameters.demPixelScale);
 
     #np.savetxt('C:\\Mystuff\\grassgisdatabase\\fildem.txt', filteredDemArray, delimiter=',')
     
@@ -1210,8 +1089,8 @@ def main():
     slopeMagnitudeDemArrayQ = np.reshape(slopeMagnitudeDemArrayQ,\
                                          np.size(slopeMagnitudeDemArrayQ))
     slopeMagnitudeDemArrayQ = slopeMagnitudeDemArrayQ[~np.isnan(slopeMagnitudeDemArrayQ)]
-    print ' angle min:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.001))*180/np.pi
-    print ' angle max:', np.arctan(quantile(slopeMagnitudeDemArrayQ,0.999))*180/np.pi
+    print ' angle min:', np.arctan(np.percentile(slopeMagnitudeDemArrayQ,0.1))*180/np.pi
+    print ' angle max:', np.arctan(np.percentile(slopeMagnitudeDemArrayQ,99.9))*180/np.pi
     print 'mean slope:',np.nanmean(slopeDemArray[:])
     print 'stdev slope:',np.nanstd(slopeDemArray[:])
     

@@ -31,7 +31,7 @@ numBasinsElements = 6
 currentWorkingDir = os.getcwd()
 geoNetHomeDir = "C:\\Mystuff\\IO_Data\\"
 demDataFilePath =  geoNetHomeDir +"data\\"
-demFileName = "skunk.tif" #"ikawa_roi1_nutm54_clipped.tif"
+demFileName = "dem_2012_mission_v1.tif" #"ikawa_roi1_nutm54_clipped.tif"
 Region = demFileName.split(".")[0]
 
 
