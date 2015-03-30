@@ -30,7 +30,7 @@ Known limitations and open issues.
 from a qqplot and should be done the same in python.. Couldn't find a easy
 way to do it in python.. but hoping I will solve in beta 2.0 release.
 
-2. The skeleton threshold used to remove rouge skeleton pixels is also not
+2. The skeleton threshold used to remove spurious skeleton pixels is also not
 the same as in GeoNet. 
 
 
