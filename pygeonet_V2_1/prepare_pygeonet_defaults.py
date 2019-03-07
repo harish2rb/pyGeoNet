@@ -6,7 +6,6 @@ doFileOutput = 1
 doReport = 1
 doPlot = 0
 doResetFiguresOnStart = 1
-doBatchProcessing = 0
 
 # **** Default parameters for Perona-Malik nonlinear diffusion
 # ... could be:  PeronaMalik1, PeronaMalik2, Tukey, rampPreserving
