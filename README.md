@@ -18,7 +18,7 @@ Running pyGeoNet with Grass GIS on Mac OS steps
 Make a conda environment with python 2.7 
 * `conda create -n grass_geonet27 python=2.7  gdal numpy pandas  requests statsmodels matplotlib`
 * `source activate grass_geonet27`
-* `pip install scikit-fmm`
+* `pip install scikit-fmm==0.0.9`
 
 Make sure you have your xcode updated
 `xcode-select --install`
