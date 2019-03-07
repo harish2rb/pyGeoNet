@@ -1,8 +1,8 @@
 import scipy.signal as conv2
 import numpy as np
 from scipy.stats.mstats import mquantiles
-# import prepare_pygeonet_defaults as defaults
-# import prepare_pygeonet_inputs as Parameters
+import prepare_pygeonet_defaults as defaults
+import prepare_pygeonet_inputs as Parameters
 import pygeonet_plot as pyg_plt
 
 
@@ -221,7 +221,7 @@ def anisodiff(img, niter, kappa, gamma, step=(1., 1.), option=2):
     return imgout
 
 
-def lambda_nonlinear_filter(nanDemArray, defaults, parameters):
+def lambda_nonlinear_filter(nanDemArray):
     """
     Computing the lambda to be used in nonlinear filter
 

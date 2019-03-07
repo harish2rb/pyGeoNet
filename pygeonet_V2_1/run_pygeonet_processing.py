@@ -4,6 +4,8 @@ import glob
 from time import clock
 import numpy as np
 from matplotlib import cm
+import prepare_pygeonet_defaults as program_defaults
+import prepare_pygeonet_inputs as program_inputs
 import pygeonet_rasterio as pyg_rio
 import pygeonet_plot as pyg_plt
 import pygeonet_nonlinear_filter as pyg_nlf
@@ -16,7 +18,7 @@ import pygeonet_network_delineation as pyg_ntd
 import pygeonet_xsbank_extraction as pyg_xsb
 
 
-def main(defaults, parameters):
+def main():
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     print("current working directory : {}".format(os.getcwd()))
     print("Reading input file path : {}".format(parameters.demDataFilePath))
@@ -41,7 +43,7 @@ def main(defaults, parameters):
     # Compute slope magnitude for raw DEM and the threshold lambda used
     # in Perona-Malik nonlinear filtering. The value of lambda (=edgeThresholdValue)
     # is given by the 90th quantile of the absolute value of the gradient.
-    edgeThresholdValue = pyg_nlf.lambda_nonlinear_filter(nanDemArray, defaults, parameters)
+    edgeThresholdValue = pyg_nlf.lambda_nonlinear_filter(nanDemArray)
     # performing PM filtering using the anisodiff
     print('Performing Perona-Malik nonlinear filtering')
     t0 = clock()
@@ -185,17 +187,7 @@ def main(defaults, parameters):
 
 if __name__ == '__main__':
     t0 = clock()
-    import prepare_pygeonet_defaults as program_defaults
-    import prepare_pygeonet_inputs as program_inputs
-    if program_defaults.doBatchProcessing:
-        list_of_tifs = glob.glob(program_inputs.demDataFilePath + "/*.tif")
-        for tifname in list_of_tifs:
-            program_inputs.demFileName = tifname.split('/')[-1]
-            main(defaults=program_defaults,
-                 parameters=program_inputs)
-    else:
-        main(defaults=program_defaults,
-             parameters=program_inputs)
+    main()
     t1 = clock()
     print("time taken to complete the script is:: {} seconds".format(t1 - t0))
     print("script complete")
