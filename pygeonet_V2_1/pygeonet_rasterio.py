@@ -18,7 +18,7 @@ def read_dem_from_geotiff(demFileName, demFilePath):
     """
     # Open the GeoTIFF format DEM
     fullFilePath = os.path.join(demFilePath, demFileName)
-    print 'reading geotiff', demFileName
+    print('reading geotiff {}'.format(demFileName))
     # Use GDAL functions to read the dem as a numpy array
     # and get the dem extent, resolution, and projection
     ary = []
@@ -79,7 +79,7 @@ def write_geotif_generic(inputArray, outfilepath, outfilename):
     :param outfilename: The output file name
     :return: None
     """
-    print 'writing geotiff', outfilename
+    print('writing geotiff {}'.format(outfilename))
     output_fileName = os.path.join(outfilepath, outfilename)
     # Get shape
     nrows = inputArray.shape[0]
@@ -88,7 +88,7 @@ def write_geotif_generic(inputArray, outfilepath, outfilename):
     driver = gdal.GetDriverByName('GTiff')
     outDs = driver.Create(output_fileName, ncols, nrows, 1, gdal.GDT_Float32)
     if outDs is None:
-        print 'Could not create ' + outfilename
+        print('Could not create {}'.format(outfilename))
         sys.exit(1)
     outBand = outDs.GetRasterBand(1)
     # set the reference info
@@ -114,17 +114,17 @@ def write_geotif_filteredDEM(filteredDemArray, filepath, filename):
     :param filename: The file name
     :return: None
     """
-    print 'writing filtered DEM'
+    print('writing filtered DEM')
     output_fileName = parameters.pmGrassGISfileName
     # Create gtif
     nrows = filteredDemArray.shape[0]
     ncols = filteredDemArray.shape[1]
-    print 'filtered DEM size:', str(nrows), 'rowsx', str(ncols), 'columns'
+    print('filtered DEM size: {0} rows x {1} columns'.format(nrows, ncols))
     # create the output image
     driver = gdal.GetDriverByName('GTiff')
     outDs = driver.Create(output_fileName, ncols, nrows, 1, gdal.GDT_Float32)
     if outDs is None:
-        print 'Could not create tif file'
+        print('Could not create tif file')
         sys.exit(1)
     # set the reference info
     geotransform = parameters.geotransform

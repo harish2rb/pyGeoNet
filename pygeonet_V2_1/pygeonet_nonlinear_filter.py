@@ -1,8 +1,8 @@
 import scipy.signal as conv2
 import numpy as np
 from scipy.stats.mstats import mquantiles
-import prepare_pygeonet_defaults as defaults
-import prepare_pygeonet_inputs as Parameters
+# import prepare_pygeonet_defaults as defaults
+# import prepare_pygeonet_inputs as Parameters
 import pygeonet_plot as pyg_plt
 
 
@@ -135,7 +135,7 @@ def geonet_diffusion(demArray, diffusionMethod, nFilterIterations,
             Ce = 1 / (1 + np.array(np.abs(Ie) / edgeThreshold) ** 2)
             Cw = 1 / (1 + np.array(np.abs(Iw) / edgeThreshold) ** 2)
         else:
-            print 'Unknown smoothing method', diffusionMethod
+            print('Unknown smoothing method {}'.format(diffusionMethod))
 
         if diffusionSigmaSquared > 0:
             # Calculate real gradients (not smoothed) - with repeat padding
@@ -190,8 +190,7 @@ def anisodiff(img, niter, kappa, gamma, step=(1., 1.), option=2):
     EW = deltaS.copy()
     gS = np.ones_like(imgout)
     gE = gS.copy()
-    for ii in xrange(niter):
-
+    for ii in range(niter):
         # calculate the diffs
         deltaS[:-1, :] = np.diff(imgout, axis=0)
         deltaE[:, :-1] = np.diff(imgout, axis=1)
@@ -222,15 +221,17 @@ def anisodiff(img, niter, kappa, gamma, step=(1., 1.), option=2):
     return imgout
 
 
-def lambda_nonlinear_filter(nanDemArray):
+def lambda_nonlinear_filter(nanDemArray, defaults, parameters):
     """
     Computing the lambda to be used in nonlinear filter
 
     :param nanDemArray: The input dem array
+    :param  defaults: geonet defaults settings
+    :param parameters: geonet input parameters
     :return: The edgeThresholdValue to be used in non linear filtering.
     """
     print('Computing slope of raw DTM')
-    slopeXArray, slopeYArray = np.gradient(nanDemArray,Parameters.demPixelScale)
+    slopeXArray, slopeYArray = np.gradient(nanDemArray, parameters.demPixelScale)
     slopeMagnitudeDemArray = np.sqrt(slopeXArray ** 2 + slopeYArray ** 2)
     print('DEM slope array shape: {}'.format(slopeMagnitudeDemArray.shape))
     # plot the slope DEM array

@@ -1,8 +1,8 @@
 import numpy as np
 from scipy import ndimage
 from matplotlib import cm
-import prepare_pygeonet_defaults as defaults
-import prepare_pygeonet_inputs as parameters
+# import prepare_pygeonet_defaults as defaults
+# import prepare_pygeonet_inputs as parameters
 import pygeonet_rasterio as pyg_rio
 import pygeonet_plot as pyg_plt
 import pygeonet_vectorio as pyg_vio

@@ -26,7 +26,7 @@ numBasinsElements = 6
 
 # Prepare GeoNet parameters just prior to main code execution
 currentWorkingDir = os.getcwd()
-geoNetHomeDir = currentWorkingDir + "/Test"
+geoNetHomeDir = currentWorkingDir + "/IO"
 demDataFilePath = os.path.join(geoNetHomeDir, "data")
 demFileName = "skunk.tif"  # "Bath2015_A01_UTM55.tif"
 # channelheadFileName = "channelhead.shp"
