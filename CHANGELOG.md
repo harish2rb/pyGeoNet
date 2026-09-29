@@ -4,6 +4,7 @@
 
 - Make pysheds 0.5 D8 the default conditioned-routing backend while retaining native D8 as an
   explicit reference backend.
+- Cap NumPy below 2.4 on every platform because pysheds 0.5 still calls the removed `np.in1d` API.
 - Add a pinned GRASS 8.5 container workflow for legacy MFD/D8 validation only.
 - Promote validated Rasterio support into the default dependency set.
 

@@ -20,6 +20,8 @@ deletion. The upstream GPL v3 text and authorship are preserved; no public relea
 - The pysheds 0.5 default passed in non-JIT unit mode and in a separate locally JIT-compiled
   process; CI has a dedicated JIT-enabled smoke job. Intel macOS uses the wheel-supported
   Numba 0.62.1/LLVMlite 0.45.1 pair, including across the declared Python 3.11-3.13 range.
+  NumPy is constrained below 2.4 on all platforms until pysheds replaces its removed
+  `np.in1d` call.
 - Analytical plane, paraboloid, rotation, units, NoData, drainage conservation, topology, and
   deterministic end-to-end checks passed.
 - Measured vectorized slope benchmark completed at 128², 256², and 512² with zero interior
@@ -33,8 +35,8 @@ deletion. The upstream GPL v3 text and authorship are preserved; no public relea
   found no known vulnerabilities after the environment's pip/setuptools were updated; the
   unpublished local package itself was necessarily skipped by the registry-backed audit.
 - Release artifacts: wheel SHA-256
-  `4aca94af092dfa093aa6fec03ae96cb59f7e51f888dae2756c258df003e81294` and source archive
-  SHA-256 `0182aa2cd2a0a52d815f8500d43c9858582d4e11f180ad458e2ac4ce05c3f512`.
+  `adb2548ce66fbad4fe419b568be7b59dfa28ac999c2d8bab9f29f7aaaff35add` and source archive
+  SHA-256 `9bfb7289c6ce9518343d9d0f10b45c176162c938a821366d94aa1deac50effa4`.
 
 ## Known limitations
 
