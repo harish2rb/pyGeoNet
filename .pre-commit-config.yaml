@@ -1,0 +1,15 @@
+exclude: ^(legacy/|data/)
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: a56c0b927e6465d37cae3e97d35d4d18ab2b96cd  # v0.16.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
