@@ -32,7 +32,13 @@ def main() -> None:
         accumulation_stats = raster_stats(accumulation)
         direction_stats = raster_stats(drainage)
         direction_cells = direction_stats["n"]
-        if accumulation_stats["max"] < 9 or not 0 < direction_cells <= 81:
+        valid_output = (
+            accumulation_stats["n"] == 81
+            and accumulation_stats["max"] > 1
+            and accumulation_stats["sum"] >= 81
+            and 0 < direction_cells <= 81
+        )
+        if not valid_output:
             raise RuntimeError(
                 f"unexpected GRASS output for {method}: "
                 f"accumulation={accumulation_stats}, directions={direction_stats}"
