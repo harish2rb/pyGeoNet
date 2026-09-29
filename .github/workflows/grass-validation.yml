@@ -1,0 +1,30 @@
+name: Legacy GRASS validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 1 * *"
+  pull_request:
+    paths:
+      - "validation/grass/**"
+      - ".github/workflows/grass-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  grass-85:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Exercise legacy r.watershed modes in a temporary project
+        run: |
+          docker run --rm --network none \
+            --volume "$GITHUB_WORKSPACE:/workspace:ro" \
+            --workdir /workspace \
+            osgeo/grass-gis:8.5.0-ubuntu@sha256:c585d75486549ef39f2a03f651f900e9d067d0d0c67c095b866b10b38c150055 \
+            grass --tmp-project XY --exec python3 validation/grass/validate_legacy_hydrology.py

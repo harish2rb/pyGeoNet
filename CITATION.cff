@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "Please cite the GeoNet software paper and foundational method when using this work."
+title: "pyGeoNet modernization release candidate"
+version: 0.2.0rc2
+license: GPL-3.0-only
+type: software
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Sangireddy
+      given-names: Harish
+    - family-names: Stark
+      given-names: Colin P.
+    - family-names: Kladzyk
+      given-names: Anna
+    - family-names: Passalacqua
+      given-names: Paola
+  title: "GeoNet: An open source software for the automatic and objective extraction of channel heads, channel network, and channel morphology from high resolution topography data"
+  journal: "Environmental Modelling & Software"
+  volume: 83
+  start: 58
+  end: 73
+  year: 2016
+  doi: 10.1016/j.envsoft.2016.04.026
+references:
+  - type: article
+    authors:
+      - family-names: Passalacqua
+        given-names: Paola
+      - family-names: Do Trung
+        given-names: Tien
+      - family-names: Foufoula-Georgiou
+        given-names: Efi
+      - family-names: Sapiro
+        given-names: Guillermo
+      - family-names: Dietrich
+        given-names: William E.
+    title: "A geometric framework for channel network extraction from lidar: Nonlinear diffusion and geodesic paths"
+    journal: "Journal of Geophysical Research: Earth Surface"
+    volume: 115
+    year: 2010
+    doi: 10.1029/2009JF001254

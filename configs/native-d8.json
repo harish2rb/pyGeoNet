@@ -1,0 +1,13 @@
+{
+  "filter_iterations": 10,
+  "filter_quantile": 0.9,
+  "diffusion_gamma": 0.15,
+  "diffusion_method": "perona-malik-2",
+  "curvature_method": "geometric",
+  "flow_threshold_cells": 50.0,
+  "curvature_sigma": 1.0,
+  "require_positive_curvature": true,
+  "condition_depressions": true,
+  "connectivity": 8,
+  "flow_backend": "native"
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "checksum": 4793.821842157304,
+    "implementation": "loop-reference",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 0.12558746337890625,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 0.28955470900109503,
+    "size": 128
+  },
+  {
+    "checksum": 4952.5067580194955,
+    "implementation": "vectorized-cold",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 0.6260223388671875,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 0.0011975590023212135,
+    "size": 128
+  },
+  {
+    "checksum": 4952.5067580194955,
+    "implementation": "vectorized-steady",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 0.6254119873046875,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 0.0005812730014440604,
+    "size": 128
+  },
+  {
+    "checksum": 39251.80462641764,
+    "implementation": "loop-reference",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 0.5005264282226562,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 1.2355579979994218,
+    "size": 256
+  },
+  {
+    "checksum": 39924.081147985766,
+    "implementation": "vectorized-cold",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 2.1256561279296875,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 0.001963385999260936,
+    "size": 256
+  },
+  {
+    "checksum": 39924.081147985766,
+    "implementation": "vectorized-steady",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 2.1256561279296875,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 0.001038162001350429,
+    "size": 256
+  },
+  {
+    "checksum": 315914.9780363969,
+    "implementation": "loop-reference",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 2.0005874633789062,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 7.939130864004255,
+    "size": 512
+  },
+  {
+    "checksum": 318561.0331934911,
+    "implementation": "vectorized-cold",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 8.250663757324219,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 0.00746531700133346,
+    "size": 512
+  },
+  {
+    "checksum": 318561.0331934911,
+    "implementation": "vectorized-steady",
+    "machine": "x86_64",
+    "max_abs_error_interior": 0.0,
+    "numpy": "2.2.6",
+    "peak_megabytes": 8.250663757324219,
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "python": "3.11.15",
+    "seconds": 0.005090869999548886,
+    "size": 512
+  }
+]
