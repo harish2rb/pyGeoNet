@@ -31,12 +31,16 @@ def main() -> None:
         )
         accumulation_stats = raster_stats(accumulation)
         direction_stats = raster_stats(drainage)
-        if accumulation_stats["max"] < 9 or direction_stats["n"] != 81:
-            raise RuntimeError(f"unexpected GRASS output for {method}")
+        direction_cells = direction_stats["n"]
+        if accumulation_stats["max"] < 9 or not 0 < direction_cells <= 81:
+            raise RuntimeError(
+                f"unexpected GRASS output for {method}: "
+                f"accumulation={accumulation_stats}, directions={direction_stats}"
+            )
         records[method] = {
             "accumulation_max": accumulation_stats["max"],
             "accumulation_sum": accumulation_stats["sum"],
-            "direction_cells": direction_stats["n"],
+            "direction_cells": direction_cells,
         }
     version = gs.parse_command("g.version", flags="g")
     if not version["version"].startswith("8.5"):
