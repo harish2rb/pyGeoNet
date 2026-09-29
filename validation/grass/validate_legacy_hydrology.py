@@ -13,7 +13,7 @@ def raster_stats(name: str) -> dict[str, float]:
 
 
 def main() -> None:
-    gs.run_command("g.region", north=9, south=0, east=9, west=0, rows=9, cols=9)
+    gs.run_command("g.region", n=9, s=0, e=9, w=0, rows=9, cols=9)
     gs.mapcalc("dem = 1000 - row() * 10 + abs(col() - 5) * 2", overwrite=True)
     records: dict[str, dict[str, float]] = {}
     for method, flags in (("legacy-mfd", "a"), ("comparison-d8", "sa")):
